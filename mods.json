@@ -146,7 +146,7 @@
       "requests",
       "community"
     ],
-    "previewUrl": "",
+    "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/media-request.png",
     "sourceUrl": "https://github.com/Jellyfin-PG/JellyFrame-Resources",
     "cssUrl": null,
     "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/media-request-client.js",

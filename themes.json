@@ -107,19 +107,22 @@
         "id": "betterui-floating-header",
         "name": "Floating Header",
         "description": "Makes the header float over content.",
-        "cssUrl": "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/options/Floating-header.css"
+        "cssUrl": "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/options/Floating-header.css",
+        "triggerVar": "FLOATING_HEADER"
       },
       {
         "id": "betterui-high-contrast",
         "name": "High Contrast Interface",
         "description": "Increases contrast throughout the UI.",
-        "cssUrl": "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/options/High-contrast-interface.css"
+        "cssUrl": "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/options/High-contrast-interface.css",
+        "triggerVar": "HIGH_CONTRAST"
       },
       {
         "id": "betterui-scale-hover",
         "name": "Scale Animation on Hover",
         "description": "Adds a scale-up animation to media cards on hover.",
-        "cssUrl": "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/options/Scale-up-animation-on-hover-card.css"
+        "cssUrl": "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/options/Scale-up-animation-on-hover-card.css",
+        "triggerVar": "SCALE_ANIMATION"
       }
     ]
   },

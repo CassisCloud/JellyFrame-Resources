@@ -201,11 +201,15 @@
         `;
 
         const adjustSize = (change) => {
+            const allowedSizes = [3, 6, 9, 12];
             const match = app.className.match(/col-(\d+)/);
             let current = match ? parseInt(match[1]) : 12;
-            let next = current + change;
             
-            if (next >= 1 && next <= 12) {
+            let closest = allowedSizes.reduce((a, b) => Math.abs(b - current) < Math.abs(a - current) ? b : a);
+            let nextIndex = allowedSizes.indexOf(closest) + change;
+            
+            if (nextIndex >= 0 && nextIndex < allowedSizes.length) {
+                let next = allowedSizes[nextIndex];
                 app.className = app.className.replace(/\bcol-\d+\b/g, '').trim();
                 app.classList.add(`col-${next}`);
                 ctrl.querySelector('span').textContent = next;
@@ -274,7 +278,7 @@
         const editBtn = document.createElement('button');
         editBtn.id = 'jf-edit-btn';
         editBtn.className = 'jf-toggle-edit';
-        editBtn.innerHTML = '⚙️';
+        editBtn.innerHTML = '⚙️ Edit';
 
         const appArea = document.createElement('div');
         appArea.id = APP_AREA_ID;
@@ -283,7 +287,7 @@
             isEditMode = !isEditMode;
             appArea.classList.toggle('jf-edit-mode', isEditMode);
             editBtn.classList.toggle('active', isEditMode);
-            editBtn.innerHTML = isEditMode ? '💾' : '⚙️';
+            editBtn.innerHTML = isEditMode ? '💾 Done' : '⚙️ Edit';
         };
 
         header.appendChild(title);

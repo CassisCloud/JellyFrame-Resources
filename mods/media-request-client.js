@@ -109,16 +109,8 @@
             '#' + OVERLAY_ID + ' .jfmr-status-pending   { background:rgba(251,191,36,0.15);color:#fbbf24; }',
             '#' + OVERLAY_ID + ' .jfmr-status-approved  { background:rgba(74,222,128,0.15);color:#4ade80; }',
             '#' + OVERLAY_ID + ' .jfmr-status-declined  { background:rgba(248,113,113,0.15);color:#f87171; }',
-            '#' + OVERLAY_ID + ' .jfmr-status-available { background:rgba(96,165,250,0.15);color:#60a5fa; }',
-            '#' + BTN_ID + ' {',
-            '  display:flex;align-items:center;gap:10px;',
-            '  padding:10px 14px;width:100%;box-sizing:border-box;',
-            '  background:none;border:none;cursor:pointer;',
-            '  color:rgba(255,255,255,0.7);font-size:.88em;font-family:inherit;',
-            '  border-radius:4px;text-align:left;',
-            '}',
-            '#' + BTN_ID + ':hover { background:rgba(255,255,255,0.06);color:#fff; }',
-            '#' + BTN_ID + ' .jfmr-btn-icon { font-size:1.2em;width:24px;text-align:center;flex-shrink:0; }'
+            '#' + OVERLAY_ID + ' .jfmr-status-available { background:rgba(96,165,250,0.15);color:#60a5fa; }'
+            // NOTE: Removed all custom CSS for the button so it inherits standard Jellyfin styling perfectly!
         ].join('\n');
         document.head.appendChild(s);
     }
@@ -363,15 +355,16 @@
         if (document.getElementById(BTN_ID)) {
             return;
         }
-        var customOptions = document.querySelector('.customMenuOptions');
-        if (!customOptions) {
+
+        var libraryMenuOptions = document.querySelector('.libraryMenuOptions');
+        if (!libraryMenuOptions) {
             return;
         }
 
-        var btn = document.createElement('button');
+        var btn = document.createElement('a');
         btn.id   = BTN_ID;
-        btn.type = 'button';
-        btn.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 14px;width:100%;box-sizing:border-box;background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.7);font-size:.88em;font-family:inherit;border-radius:4px;text-align:left;';
+        btn.href = '#';
+        btn.className = 'navMenuOption emby-button';
 
         var icon = document.createElement('span');
         icon.className   = 'material-icons navMenuOptionIcon';
@@ -385,16 +378,13 @@
         btn.appendChild(icon);
         btn.appendChild(label);
 
-        btn.onmouseover = function () { btn.style.background = 'rgba(255,255,255,0.06)'; btn.style.color = '#fff'; };
-        btn.onmouseout  = function () { btn.style.background = 'none'; btn.style.color = 'rgba(255,255,255,0.7)'; };
-
         btn.onclick = function (e) {
             e.preventDefault();
             e.stopPropagation();
             openDialog();
         };
 
-        customOptions.appendChild(btn);
+        libraryMenuOptions.appendChild(btn);
     }
 
     function init() {

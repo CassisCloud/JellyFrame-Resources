@@ -438,5 +438,112 @@
     "requires": [],
     "preconnect": [],
     "vars": []
+  },
+  {
+    "id": "weather-icon",
+    "name": "Weather Icon",
+    "author": "grimmdev",
+    "description": "Shows the current weather in the header.",
+    "version": "1.0.0",
+    "jellyfin": "10.11+",
+    "tags": [
+      "ui",
+      "header"
+    ],
+    "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/Custom-Mods@main/WeatherIcon/thumbnail.png",
+    "sourceUrl": "https://github.com/Jellyfin-PG/Custom-Mods/tree/main/WeatherIcon",
+    "cssUrl": "",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/Custom-Mods@main/WeatherIcon/WeatherIcon.min.js",
+    "serverJs": "",
+    "permissions": [],
+    "requires": [],
+    "preconnect": [],
+    "vars": []
+  },
+  {
+    "id": "time-icon",
+    "name": "Time Icon",
+    "author": "grimmdev",
+    "description": "Shows the current time in the header.",
+    "version": "1.0.0",
+    "jellyfin": "10.11+",
+    "tags": [
+      "ui",
+      "header"
+    ],
+    "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/Custom-Mods@main/TimeIcon/thumbnail.png",
+    "sourceUrl": "https://github.com/Jellyfin-PG/Custom-Mods/tree/main/TimeIcon",
+    "cssUrl": "",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/Custom-Mods@main/TimeIcon/TimeIcon.min.js",
+    "serverJs": "",
+    "permissions": [],
+    "requires": [],
+    "preconnect": [],
+    "vars": []
+  },
+  {
+    "id": "active-session-counter-icon",
+    "name": "Active Session Counter Icon",
+    "author": "grimmdev",
+    "description": "Shows the active content watching sessions.",
+    "version": "1.0.0",
+    "jellyfin": "10.11+",
+    "tags": [
+      "ui",
+      "header"
+    ],
+    "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/Custom-Mods@main/ActiveSessionCounterIcon/thumbnail.png",
+    "sourceUrl": "https://github.com/Jellyfin-PG/Custom-Mods/tree/main/ActiveSessionCounterIcon",
+    "cssUrl": "",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/Custom-Mods@main/ActiveSessionCounterIcon/ActiveSessionCounterIcon.min.js",
+    "serverJs": "",
+    "permissions": [
+      "jellyfin.read"
+    ],
+    "requires": [],
+    "preconnect": [],
+    "vars": []
+  },
+  {
+    "id": "latency-icon",
+    "name": "Latency Icon",
+    "author": "grimmdev",
+    "description": "Shows the current latency in the header.",
+    "version": "1.0.0",
+    "jellyfin": "10.11+",
+    "tags": [
+      "ui",
+      "header"
+    ],
+    "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/Custom-Mods@main/LatencyIcon/thumbnail.png",
+    "sourceUrl": "https://github.com/Jellyfin-PG/Custom-Mods/tree/main/LatencyIcon",
+    "cssUrl": "",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/Custom-Mods@main/LatencyIcon/LatencyIcon.min.js",
+    "serverJs": "",
+    "permissions": [],
+    "requires": [],
+    "preconnect": [],
+    "vars": []
+  },
+  {
+    "id": "battery-icon",
+    "name": "Battery Icon",
+    "author": "grimmdev",
+    "description": "Shows the current battery in the header.",
+    "version": "1.0.0",
+    "jellyfin": "10.11+",
+    "tags": [
+      "ui",
+      "header"
+    ],
+    "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/Custom-Mods@main/BatteryIcon/thumbnail.png",
+    "sourceUrl": "https://github.com/Jellyfin-PG/Custom-Mods/tree/main/BatteryIcon",
+    "cssUrl": "",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/Custom-Mods@main/BatteryIcon/BatteryIcon.min.js",
+    "serverJs": "",
+    "permissions": [],
+    "requires": [],
+    "preconnect": [],
+    "vars": []
   }
 ]

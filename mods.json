@@ -44,7 +44,7 @@
       "store",
       "scheduler"
     ],
-    "requires": [],
+    "requires": ["home-app-layout"],
     "preconnect": [],
     "vars": [
       {

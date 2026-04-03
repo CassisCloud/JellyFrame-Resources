@@ -12,7 +12,7 @@
       "featured",
       "ui"
     ],
-    "previewUrl": "",
+    "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame@main/examples/media-bar.png",
     "sourceUrl": "https://github.com/Jellyfin-PG/JellyFrame",
     "cssUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame@main/examples/media-bar-style.css",
     "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame@main/examples/media-bar-client.js",

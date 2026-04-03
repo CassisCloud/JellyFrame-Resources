@@ -5,7 +5,6 @@
 (function () {
     'use strict';
 
-    /* ── 1. Configuration ────────────────────────────────────────────────── */
     var INTERVAL_MS = parseInt('{{SLIDE_INTERVAL}}', 10) || 8000;
     var API_BASE    = '/JellyFrame/mods/media-bar/api';
     var BAR_ID      = 'jf-media-bar';
@@ -14,7 +13,6 @@
     var timer        = null;
     var isFetching   = false;
 
-    /* ── 2. Playback Engine (The Missing Endpoint Logic) ─────────────────── */
     function playNow(item) {
         if (typeof ApiClient === 'undefined') return;
 
@@ -22,7 +20,6 @@
             var deviceId = typeof ApiClient.deviceId === 'function' ? ApiClient.deviceId() : null;
             var sessionId = null;
 
-            // Find session for current device
             for (var i = 0; i < sessions.length; i++) {
                 if (deviceId && sessions[i].DeviceId === deviceId) {
                     sessionId = sessions[i].Id;
@@ -30,7 +27,6 @@
                 }
             }
 
-            // Fallback to any Web client
             if (!sessionId) {
                 for (var j = 0; j < sessions.length; j++) {
                     if (sessions[j].Client && sessions[j].Client.indexOf('Web') !== -1) {
@@ -56,7 +52,6 @@
         });
     }
 
-    /* ── 3. Gallery Styles (Scoped to #app-area) ────────────────────────── */
     const injectStyles = () => {
         if (document.getElementById('jf-media-bar-style')) return;
         var s = document.createElement('style');
@@ -86,7 +81,6 @@
         document.head.appendChild(s);
     }
 
-    /* ── 4. Data Logic (Restored Fetching & Formatting) ──────────────────── */
     function formatRuntime(ticks) {
         if (!ticks) return '';
         var m = Math.floor(ticks / 600000000);
@@ -95,12 +89,10 @@
 
     function fetchItems() {
         var userId = (typeof ApiClient !== 'undefined') ? ApiClient.getCurrentUserId() : null;
-        // Attempt Server Mod API first
         return fetch(API_BASE + '/items' + (userId ? '?userId=' + encodeURIComponent(userId) : ''))
             .then(r => r.ok ? r.json() : Promise.reject())
             .then(data => data.items || [])
             .catch(() => {
-                // Fallback to Standard ApiClient
                 if (typeof ApiClient === 'undefined') return [];
                 return ApiClient.getJSON(ApiClient.getUrl('Users/' + userId + '/Items', {
                     IncludeItemTypes: 'Movie,Series', Limit: 10, SortBy: 'Random', Filters: 'IsUnplayed', Recursive: true,
@@ -118,11 +110,10 @@
             });
     }
 
-    /* ── 5. Build Component ──────────────────────────────────────────────── */
     function buildBar(items) {
         var bar = document.createElement('div');
         bar.id = BAR_ID;
-        bar.className = "app col-12"; // Framework: Style as App, Span all 12 columns
+        bar.className = "app col-12";
 
         var slideEls = [], dotEls = [];
         currentIndex = 0;
@@ -135,21 +126,18 @@
             var overlay = document.createElement('div');
             overlay.className = 'jfmb-overlay';
 
-            // Logo/Title Logic
             if (item.logoUrl) {
                 overlay.innerHTML = `<img class="jfmb-logo" src="${item.logoUrl}">`;
             } else {
                 overlay.innerHTML = `<div class="jfmb-title">${item.name}</div>`;
             }
 
-            // Meta Info
             var meta = `<div class="jfmb-meta">`;
             if (item.communityRating) meta += `<span class="jfmb-rating">★ ${item.communityRating.toFixed(1)}</span>`;
             if (item.year) meta += `<span>${item.year}</span>`;
             meta += `</div><div class="jfmb-overview">${item.overview || ''}</div>`;
             overlay.innerHTML += meta;
 
-            // Buttons
             var btns = document.createElement('div');
             btns.className = 'jfmb-buttons';
 
@@ -192,7 +180,6 @@
             slideEls.push(slide);
         });
 
-        // Rotation
         const goTo = (idx) => {
             slideEls[currentIndex].classList.remove('active');
             dotEls[currentIndex]?.classList.remove('active');
@@ -226,7 +213,6 @@
         return bar;
     }
 
-    /* ── 6. Lifecycle & Polling ────────────────────────────────────────── */
     const init = () => {
         const area = document.getElementById('app-area');
         if (!area || document.getElementById(BAR_ID) || isFetching) return;
@@ -239,7 +225,6 @@
         });
     };
 
-    // Polling for Favorite status (Syncing with other clients)
     setInterval(() => {
         if (!document.getElementById(BAR_ID)) return;
         var userId = (typeof ApiClient !== 'undefined') ? ApiClient.getCurrentUserId() : null;

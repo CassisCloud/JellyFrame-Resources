@@ -29,10 +29,10 @@
     "jellyfin": "10.10+",
     "tags": ["ui", "server"],
     "previewUrl": "",
-    "sourceUrl": "",
+    "sourceUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/custom-tab.png",
     "cssUrl": null,
-    "jsUrl": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/custom-tab-client.js",
-    "serverJs": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/custom-tab-server.js",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/custom-tab-client.js",
+    "serverJs": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/custom-tab-server.js",
     "permissions": [],
     "requires": [],
     "vars": [

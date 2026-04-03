@@ -286,5 +286,27 @@
     "requires": [],
     "preconnect": [],
     "vars": []
+  },
+  {
+    "id": "seasonal-effects",
+    "name": "Seasonal Effects",
+    "author": "grimmdev",
+    "description": "Decorate your jellyfin with seasonal effects.",
+    "version": "1.0.0",
+    "jellyfin": "10.11+",
+    "tags": [
+      "ui",
+      "particles",
+      "seasons"
+    ],
+    "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/Custom-Mods@main/SeasonalEffects/thumbnail.png",
+    "sourceUrl": "https://github.com/Jellyfin-PG/Custom-Mods/tree/main/SeasonalEffects",
+    "cssUrl": "",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/Custom-Mods@main/SeasonalEffects/SeasonalEffects.min.js",
+    "serverJs": "",
+    "permissions": [],
+    "requires": [],
+    "preconnect": [],
+    "vars": []
   }
 ]

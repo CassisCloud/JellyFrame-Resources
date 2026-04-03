@@ -25,7 +25,7 @@
     "name": "Custom Synthetic Tabs",
     "author": "yourname",
     "description": "Adds a custom tab to the UI that loads a synthetic HTML page with its own isolated JS/CSS.",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "jellyfin": "10.10+",
     "tags": ["ui", "server"],
     "previewUrl": "",

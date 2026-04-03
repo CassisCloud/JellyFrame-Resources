@@ -75,7 +75,7 @@
       "idle",
       "utility"
     ],
-    "previewUrl": "",
+    "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame@main/examples/are-you-still-watching.png",
     "sourceUrl": "https://github.com/Jellyfin-PG/JellyFrame",
     "cssUrl": null,
     "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame@main/examples/are-you-still-watching-client.js",

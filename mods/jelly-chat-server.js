@@ -1,65 +1,50 @@
-// server.js - Logic for the chat backend
+// server.js
 jf.onStart(function() {
-    jf.log.info('JellyChat Service Started');
-    if (jf.store.get('chat_log') === null) {
-        jf.store.set('chat_log', JSON.stringify([]));
-    }
+    jf.log.info('Private Chat Service Started');
 });
 
-jf.onStop(function() {
-    jf.log.info('JellyChat Service Stopped');
-});
-
-// Route: GET /JellyFrame/mods/jelly-chat/api/sync
-// This returns BOTH the online users and the message history in one request
+// GET /JellyFrame/mods/jelly-chat/api/sync?targetId=abc
 jf.routes.get('/sync', function(req, res) {
-    var sessions = jf.jellyfin.getSessions() || [];
-    var activeUsers = [];
-    var seenIds = {};
+    var myId = String(req.query['myId']);
+    var targetId = String(req.query['targetId']);
+    
+    // Create a unique key for this pair (alphabetical so it's the same for both users)
+    var pairId = [myId, targetId].sort().join('_');
+    var storeKey = 'chat_' + pairId;
 
+    var history = JSON.parse(jf.store.get(storeKey) || '[]');
+    var sessions = jf.jellyfin.getSessions() || [];
+    
+    // Return all online users so the UI can show the "Friend List"
+    var online = [];
     for (var i = 0; i < sessions.length; i++) {
-        var s = sessions[i];
-        if (s.userId && !seenIds[s.userId]) {
-            seenIds[s.userId] = true;
-            activeUsers.push({
-                id: s.userId,
-                name: s.userName,
-                device: s.deviceName,
-                // Check if they are actually playing something
-                isWatching: s.nowPlayingItem !== null
-            });
+        if (sessions[i].userId && sessions[i].userId !== myId) {
+            online.push({ id: sessions[i].userId, name: sessions[i].userName });
         }
     }
 
-    var history = JSON.parse(jf.store.get('chat_log') || '[]');
-    
     return res.json({
-        online: activeUsers,
-        messages: history
+        messages: history,
+        online: online
     });
 });
 
-// Route: POST /JellyFrame/mods/jelly-chat/api/send
+// POST /JellyFrame/mods/jelly-chat/api/send
 jf.routes.post('/send', function(req, res) {
-    if (!req.body || !req.body.text || !req.body.userId) {
-        return res.status(400).json({ error: 'Incomplete data' });
-    }
+    var body = req.body;
+    var pairId = [String(body.fromId), String(body.toId)].sort().join('_');
+    var storeKey = 'chat_' + pairId;
 
-    var history = JSON.parse(jf.store.get('chat_log') || '[]');
-    var entry = {
-        userId: String(req.body.userId),
-        userName: String(req.body.userName),
-        text: String(req.body.text),
-        timestamp: new Date().getTime()
-    };
+    var history = JSON.parse(jf.store.get(storeKey) || '[]');
+    history.push({
+        from: String(body.fromName),
+        fromId: String(body.fromId),
+        text: String(body.text),
+        time: new Date().getTime()
+    });
 
-    history.push(entry);
+    if (history.length > 30) history.shift();
 
-    // Keep history lean (last 40 messages) to prevent CPU lag on parse
-    if (history.length > 40) {
-        history.shift();
-    }
-
-    jf.store.set('chat_log', JSON.stringify(history));
-    return res.json({ success: true });
+    jf.store.set(storeKey, JSON.stringify(history));
+    return res.json({ ok: true });
 });

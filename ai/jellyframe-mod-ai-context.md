@@ -1,0 +1,638 @@
+# JellyFrame Mod Builder - AI Context Document
+
+JellyFrame is a Jellyfin customization framework. Mods are entries in a `mods.json` array hosted publicly over HTTPS. This document is the complete reference. Do not invent APIs or fields.
+
+---
+
+## Project context
+
+- Plugin: Jellyfin.Plugin.JellyFrame
+- Runtime engine: Jint 4.1.0 (ES2022 subset, no DOM, no native fetch)
+- Jellyfin version: 10.11+
+- Official mod repository: https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods.json
+- Official theme repository: https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/themes.json
+
+---
+
+## What a mod is
+
+A mod is one entry in a `mods.json` array. It can combine any of:
+- `cssUrl` - CSS injected into every Jellyfin page ({{VAR}} substitution server-side before delivery)
+- `jsUrl` - Browser JS injected into every Jellyfin page ({{VAR}} substitution server-side before delivery)
+- `serverJs` - JS file that runs inside Jellyfin via Jint (no DOM, no fetch, use jf.* API)
+
+All three are optional. A mod can be CSS-only, JS-only, server-only, or any combination.
+
+---
+
+## mods.json - complete schema
+
+```json
+{
+  "id": "my-mod",
+  "name": "My Mod",
+  "author": "yourname",
+  "description": "Short description.",
+  "version": "1.0.0",
+  "jellyfin": "10.10+",
+  "tags": ["ui", "server"],
+  "previewUrl": "https://example.com/preview.png",
+  "sourceUrl": "https://github.com/yourname/my-mod",
+  "cssUrl": "https://cdn.example.com/my-mod/style.css",
+  "jsUrl": "https://cdn.example.com/my-mod/browser.js",
+  "serverJs": "https://cdn.example.com/my-mod/server.js",
+  "permissions": ["jellyfin.read", "store"],
+  "requires": [],
+  "preconnect": ["https://fonts.googleapis.com"],
+  "vars": [
+    {
+      "key": "ACCENT_COLOR",
+      "name": "Accent Color",
+      "description": "Helper text shown in UI.",
+      "type": "color",
+      "default": "#00a4dc",
+      "allowGradient": false
+    },
+    {
+      "key": "SHOW_BADGE",
+      "name": "Show Badge",
+      "type": "boolean",
+      "default": "false",
+      "trueValue": "1",
+      "falseValue": "0"
+    },
+    {
+      "key": "FONT_SIZE",
+      "name": "Font Size",
+      "type": "number",
+      "default": "14"
+    },
+    {
+      "key": "LABEL",
+      "name": "Label",
+      "type": "text",
+      "default": "My Label"
+    }
+  ]
+}
+```
+
+### Field rules
+
+- `id` - unique lowercase kebab-case slug. Changing it creates a brand-new mod entry.
+- `version` - ALWAYS bump when changing any asset file. Cache key includes version; without a bump users get stale files even after cache purge.
+- `cssUrl` / `jsUrl` - may be null or omitted.
+- `serverJs` - single URL string. One server script per mod. No {{VAR}} substitution - use jf.vars['KEY'] at runtime instead.
+- `permissions` - only needed for serverJs. Declare only what is actually used.
+- `requires` - other mod ids that must be loaded first. JellyFrame topologically sorts server mods at load time.
+- `preconnect` - optional. Origins to preconnect (DNS + TCP handshake) in <head>. Deduplicated across all enabled mods. Omit if not needed.
+- `vars[].key` - SCREAMING_SNAKE_CASE. Referenced as {{KEY}} in cssUrl/jsUrl and jf.vars['KEY'] in serverJs.
+- `vars[].type` - "text" | "number" | "color" | "boolean". Default: "text".
+- `vars[].default` - always a string even for number and boolean types.
+- `vars[].trueValue` / `falseValue` - what {{KEY}} substitutes for boolean vars. Defaults: "true" / "false".
+- `vars[].allowGradient` - color type only. When true, picker shows gradient mode producing linear-gradient(...) / radial-gradient(...) / conic-gradient(...) strings.
+
+---
+
+## Variable substitution
+
+Write {{KEY}} anywhere in cssUrl or jsUrl files. Replaced server-side with user's saved value (or default) before caching and delivery.
+
+```css
+:root { --accent: {{ACCENT_COLOR}}; }
+.raised { background: var(--accent) !important; }
+```
+
+```js
+var accentColor = '{{ACCENT_COLOR}}';
+var showBadge   = '{{SHOW_BADGE}}' === '1';
+var fontSize    = parseInt('{{FONT_SIZE}}', 10) || 14;
+```
+
+In serverJs do NOT use {{KEY}} - use jf.vars['KEY'] instead (live string value at runtime).
+
+---
+
+## Injection mechanics
+
+- Mod CSS blocks are inlined in a single `<style data-jellyframe-mods="1">` tag before `</body>`.
+- Mod JS blocks are inlined in a single `<script data-jellyframe-mods="1">` tag before `</body>`, wrapped in a deduplication guard: `if (window.__jellyFrameModsLoaded) return; window.__jellyFrameModsLoaded = true;`
+- Preconnect hints go into `<head>` (correct placement for DNS prefetch to work).
+- Multiple enabled mods share the same CSS/JS block - their assets are concatenated in load order.
+
+---
+
+## Disk cache key
+
+```
+{id}__{version}__{type}__{varsHash}.ext   (for cssUrl and jsUrl - has vars hash)
+{id}__{version}__serverjs.js              (for serverJs - no vars hash)
+```
+
+- Changing `version` invalidates ALL cached files unconditionally.
+- Changing a var value changes varsHash, invalidating compiled files.
+- After purging: the re-download uses the version from the SAVED plugin config. ALWAYS update version in manifest AND save config before purging, otherwise re-download writes to the same old filename.
+
+---
+
+## Permissions reference
+
+| String | Unlocks |
+|---|---|
+| "http" | jf.http |
+| "jellyfin.read" | jf.jellyfin read methods + events |
+| "jellyfin.write" | jf.jellyfin write methods (implies jellyfin.read) |
+| "store" | jf.store and jf.userStore |
+| "scheduler" | jf.scheduler |
+| "webhooks" | jf.webhooks |
+| "rpc" | jf.rpc |
+| "bus" | jf.bus |
+
+Always available without permission: jf.vars, jf.log, jf.cache, jf.routes, jf.perms, jf.onStart(), jf.onStop()
+
+---
+
+## server.js - the jf global
+
+```
+jf.vars        - { KEY: "value", ... }  read-only, always strings
+jf.log         - logging
+jf.cache       - in-memory TTL cache (lost on restart)
+jf.perms       - permission introspection
+jf.routes      - HTTP route registration
+jf.http        - outbound HTTP        [permission: http]
+jf.jellyfin    - Jellyfin API         [permission: jellyfin.read / jellyfin.write]
+jf.store       - persistent storage   [permission: store]
+jf.userStore   - per-user storage     [permission: store]
+jf.scheduler   - intervals and cron   [permission: scheduler]
+jf.bus         - cross-mod event bus  [permission: bus]
+jf.webhooks    - inbound/outbound     [permission: webhooks]
+jf.rpc         - mod-to-mod calls     [permission: rpc]
+jf.onStart(fn) - lifecycle hook, called once after load
+jf.onStop(fn)  - lifecycle hook, called before unload
+```
+
+Engine limits: ES2022, no DOM, no fetch. Max 64MB Jint heap (CLR objects from jf.jellyfin.* do NOT count). Max 30s load timeout.
+
+---
+
+## jf.log
+
+```js
+jf.log.debug('message');
+jf.log.info('message');
+jf.log.warn('message');
+jf.log.error('message');
+jf.log.info('data: ' + JSON.stringify(obj));
+```
+
+---
+
+## jf.cache
+
+In-memory only. Lost on restart. Values can be any type.
+
+```js
+jf.cache.set(key, value)
+jf.cache.set(key, value, ttlMs)
+jf.cache.get(key)        // -> value | null
+jf.cache.has(key)        // -> boolean
+jf.cache.delete(key)
+jf.cache.clear()
+jf.cache.count           // -> number of live entries
+```
+
+---
+
+## jf.routes
+
+Routes served at /JellyFrame/mods/{mod-id}/api/{path}
+
+```js
+jf.routes.get('/path',       function(req, res) { ... });
+jf.routes.post('/path',      function(req, res) { ... });
+jf.routes.put('/path',       function(req, res) { ... });
+jf.routes.delete('/path',    function(req, res) { ... });
+jf.routes.patch('/path',     function(req, res) { ... });
+jf.routes.get('/items/:id',  function(req, res) { ... });
+```
+
+req object:
+```
+req.method      - "GET" | "POST" | ...
+req.path        - full path string
+req.query       - { key: "value" }  access as req.query['key']
+req.headers     - { key: "value" }
+req.pathParams  - { id: "abc" }  from :name patterns, access as req.pathParams['id']
+req.body        - parsed JSON ExpandoObject | null  dot-access works: req.body.myField
+req.rawBody     - raw body string | null
+req.modId       - your mod's id string
+```
+
+IMPORTANT - req.body is an ExpandoObject, not a plain JS object. Dot-access works. Object.assign and spread do NOT work. Cast fields: String(req.body.userId). Always check req.body && req.body.field before use.
+
+res object:
+```js
+res.json(data)
+res.html(htmlString)
+res.text(text, contentType?)
+res.status(code)          // returns res for chaining
+res.header(key, value)    // returns res for chaining
+
+return res.status(404).json({ error: 'not found' });
+return res.header('X-Custom', 'value').json({ ok: true });
+```
+
+Always return res.json(...) to send the response.
+
+---
+
+## jf.store
+
+Persistent key-value store. Survives restarts. Values are ALWAYS strings.
+
+```js
+jf.store.get(key)          // -> string | null
+jf.store.set(key, value)   // value must be a string
+jf.store.delete(key)
+jf.store.clear()
+jf.store.keys()            // -> string[]
+
+jf.store.set('cfg', JSON.stringify({ count: 0 }));
+var cfg = JSON.parse(jf.store.get('cfg') || '{}');
+```
+
+---
+
+## jf.userStore
+
+Same as jf.store but scoped per Jellyfin user ID.
+
+```js
+jf.userStore.get(userId, key)
+jf.userStore.set(userId, key, value)
+jf.userStore.delete(userId, key)
+jf.userStore.clear(userId)
+jf.userStore.keys(userId)       // -> string[]
+jf.userStore.users()            // -> string[] of all user IDs with data
+```
+
+---
+
+## jf.http
+
+Synchronous outbound HTTP. Blocks until response or timeout.
+
+```js
+var r = jf.http.get(url, options?)
+var r = jf.http.post(url, body?, options?)   // body is a string
+var r = jf.http.put(url, body?, options?)
+var r = jf.http.delete(url, options?)
+var r = jf.http.patch(url, body?, options?)
+
+// options: { headers: { 'X-Key': 'val' }, timeout: 10000 }
+
+r.ok           // boolean - true if 200-299
+r.status       // number
+r.body         // string - raw response body
+r.json()       // parses r.body as JSON - preferred over JSON.parse(r.body)
+r.header(name) // string | null - specific response header value
+
+var r = jf.http.get('https://api.example.com/data');
+if (!r.ok) {
+    return res.status(502).json({ error: 'upstream failed' });
+}
+var data = r.json();
+```
+
+---
+
+## jf.jellyfin - read methods
+
+All synchronous. Return null or [] on failure. Never throw.
+
+```js
+jf.jellyfin.getItem(id, userId?)             // -> item | null  (userId required for isFavorite)
+jf.jellyfin.getItems(query)                  // -> item[] | null
+jf.jellyfin.getItemByPath(path)              // -> item | null
+jf.jellyfin.search(term, limit?)             // -> item[]  default limit 20
+jf.jellyfin.getLatestItems(userId, limit?)   // -> item[]  default 20
+jf.jellyfin.getResumeItems(userId, limit?)   // -> item[]  default 10
+jf.jellyfin.getUsers()                       // -> user[]
+jf.jellyfin.getUser(id)                      // -> user | null
+jf.jellyfin.getUserByName(name)              // -> user | null
+jf.jellyfin.getSessions()                    // -> session[]
+jf.jellyfin.getSessionsForUser(userId)       // -> session[]
+jf.jellyfin.getUserLibraries(userId)         // -> library[]
+jf.jellyfin.getPlaylists(userId)             // -> playlist[]
+jf.jellyfin.getSubtitleProviders()           // -> provider[]
+jf.jellyfin.getEncoderVersion()              // -> string
+jf.jellyfin.getEncoderInfo()                 // -> object
+```
+
+getItems query fields (all strings):
+```
+type       - "Movie" | "Series" | "Episode" | "Audio" | "MusicAlbum" | "Season" | etc.
+recursive  - "true" | "false"
+limit      - "20"
+sortBy     - "DateCreated" | "SortName" | "CommunityRating" | "Random" | etc.
+sortOrder  - "Ascending" | "Descending"
+parentId   - folder/library/playlist ID
+userId     - user ID (required to get correct isFavorite)
+filters    - "IsPlayed" | "IsUnplayed" | "IsFavorite" | etc.
+```
+
+Common item fields:
+```
+item.id, item.name, item.type, item.serverId
+item.overview, item.genres (string[]), item.tags (string[])
+item.productionYear, item.officialRating, item.communityRating
+item.runTimeTicks       - divide by 600000000 for minutes, 10000000 for seconds
+item.imageTags          - { Primary: "tag", Thumb: "tag", Banner: "tag", Logo: "tag" }
+item.backdropImageTags  - string[]
+item.isFavorite         - boolean (only populated when userId passed)
+item.path               - filesystem path
+item.seriesName, item.seasonName, item.indexNumber
+item.parentId, item.parentIndexNumber
+```
+
+Image URL pattern:
+```
+/Items/{itemId}/Images/Primary?tag={tag}&quality=90&maxWidth=400
+/Items/{itemId}/Images/Backdrop/0?tag={tag}&quality=90&maxWidth=1920
+/Items/{itemId}/Images/Logo?tag={tag}&quality=90&maxWidth=400
+/Items/{itemId}/Images/Thumb?tag={tag}&quality=90
+```
+
+Common user fields:
+```
+user.id, user.name, user.lastLoginDate, user.lastActivityDate
+user.policy.isAdministrator, user.policy.isDisabled
+```
+
+Common session fields:
+```
+session.id, session.userId, session.userName
+session.client, session.deviceName, session.deviceId
+session.nowPlayingItem   - item | null
+session.playState        - { isPaused, positionTicks, canSeek }
+```
+
+---
+
+## jf.jellyfin - write methods
+
+```js
+jf.jellyfin.setFavorite(userId, itemId, true|false)
+jf.jellyfin.setWatched(userId, itemId, true|false)
+jf.jellyfin.refreshLibrary()
+jf.jellyfin.sendMessageToSession(sessionId, header, text, timeoutMs?)
+jf.jellyfin.sendMessageToAllSessions(header, text, timeoutMs?)
+jf.jellyfin.stopPlayback(sessionId)
+jf.jellyfin.pausePlayback(sessionId)
+jf.jellyfin.resumePlayback(sessionId)
+jf.jellyfin.seekPlayback(sessionId, positionTicks)    // seconds * 10000000
+jf.jellyfin.playItem(sessionId, itemId)
+jf.jellyfin.createPlaylist(userId, name, itemIds[])   // -> playlist ID string
+jf.jellyfin.addToPlaylist(playlistId, itemIds[], userId)
+jf.jellyfin.downloadSubtitles(itemId, subtitleIndex)
+```
+
+---
+
+## jf.jellyfin - events
+
+Require jellyfin.read. Fire on Jellyfin domain events - no polling.
+
+```js
+jf.jellyfin.on('item.added',       function(data) { });  // data.itemId, data.itemName, data.userId
+jf.jellyfin.on('item.updated',     function(data) { });
+jf.jellyfin.on('item.removed',     function(data) { });
+jf.jellyfin.on('playback.started', function(data) { });  // + data.sessionId, data.userName, data.itemName
+jf.jellyfin.on('playback.stopped', function(data) { });  // + data.positionTicks, data.playedToEnd
+jf.jellyfin.off('item.added');
+```
+
+Event handlers MUST be void. Do not return a value from on() callbacks.
+
+---
+
+## jf.scheduler
+
+```js
+var id = jf.scheduler.interval(ms, fn)
+var id = jf.scheduler.cron(expr, fn)     // 5-field: "0 * * * *" = hourly
+jf.scheduler.cancel(id)
+jf.scheduler.cancelAll()                 // always call in jf.onStop
+jf.scheduler.count                       // -> number of active tasks
+```
+
+---
+
+## jf.bus
+
+```js
+var count = jf.bus.emit(eventName, data?)
+var subId = jf.bus.on(eventName, function(data, fromModId) { ... })
+jf.bus.off(subId)
+jf.bus.offAll()     // always call in jf.onStop
+```
+
+---
+
+## jf.webhooks
+
+```js
+jf.webhooks.register('name', function(payload, headers) { ... });
+jf.webhooks.unregister('name');
+jf.webhooks.list()   // -> string[]
+
+// Inbound URL: POST /JellyFrame/mods/{mod-id}/webhooks/{name}
+
+var r = jf.webhooks.send(url, payload, options?)
+// options: { secret: 'hmac-key', timeout: 5000 }
+// r: { ok, status, body }
+```
+
+---
+
+## jf.rpc
+
+```js
+jf.rpc.handle('method', function(payload) { return { result: 'value' }; });
+jf.rpc.unhandle('method');
+jf.rpc.methods()    // -> string[]
+
+var r = jf.rpc.call(targetModId, method, payload?, timeoutMs?)
+// r.ok, r.value, r.error
+```
+
+---
+
+## jf.perms
+
+```js
+jf.perms.has('http')    // -> boolean
+jf.perms.granted()      // -> string[]
+```
+
+---
+
+## Canonical lifecycle pattern
+
+```js
+jf.onStart(function() {
+    jf.log.info('started');
+});
+
+jf.onStop(function() {
+    jf.scheduler.cancelAll();
+    jf.bus.offAll();
+    jf.jellyfin.off('playback.started');
+    jf.webhooks.unregister('my-hook');
+    jf.log.info('stopped');
+});
+```
+
+---
+
+## Jint 4.1.0 compatibility - critical rules
+
+These cause runtime errors in Jint 4.1.0:
+
+```js
+// WRONG - Object.assign on CLR objects unreliable
+var copy = Object.assign({}, clrObject, { extra: true });
+// RIGHT - build plain objects field by field
+var copy = { id: clrObject.id, name: clrObject.name, extra: true };
+
+// WRONG - single-line return without braces inside nested closures
+if (x === 0) return res.status(500).json({ error: 'fail' });
+// RIGHT
+if (x === 0) {
+    return res.status(500).json({ error: 'fail' });
+}
+```
+
+CLR properties are camelCased in Jint 4: req.query not req.Query, req.pathParams not req.PathParams.
+All jf.* surfaces are already camelCase.
+
+---
+
+## browser.js compatibility rules
+
+- No const/let - use var
+- No arrow functions - use function() {}
+- No template literals - use string concatenation
+- No Object.assign or spread on CLR-backed objects
+- Always use braces on all if/else/for blocks
+- No non-ASCII characters - GitHub CDN may alter encoding. Use -- not --, plain ASCII quotes
+- Jellyfin's CSS overrides appearance:none on inputs and many class-based styles
+- Use inline style attributes on all UI elements you create - never rely on CSS classes
+- isFavorite is per-user - always pass userId to getItem/getItems, never cache it shared
+
+---
+
+## Complete working example
+
+server.js:
+```js
+jf.onStart(function() {
+    if (jf.store.get('visits') === null) {
+        jf.store.set('visits', '0');
+    }
+    buildCache();
+    jf.scheduler.interval(5 * 60 * 1000, function() {
+        buildCache();
+    });
+    jf.jellyfin.on('item.added', function() {
+        buildCache();
+    });
+});
+
+jf.onStop(function() {
+    jf.scheduler.cancelAll();
+    jf.jellyfin.off('item.added');
+});
+
+function buildCache() {
+    var movies = jf.jellyfin.getItems({ type: 'Movie', recursive: 'true', limit: '20' }) || [];
+    jf.cache.set('movies', movies, 5 * 60 * 1000);
+}
+
+jf.routes.get('/movies', function(req, res) {
+    var n = parseInt(jf.store.get('visits') || '0', 10) + 1;
+    jf.store.set('visits', String(n));
+    var movies = jf.cache.get('movies');
+    if (!movies) {
+        buildCache();
+        movies = jf.cache.get('movies') || [];
+    }
+    return res.json({ count: movies.length, items: movies });
+});
+
+jf.routes.post('/favourite/:id', function(req, res) {
+    var id     = req.pathParams['id'];
+    var body   = req.body || {};
+    var fav    = body.favourite !== false;
+    var userId = body.userId ? String(body.userId) : null;
+    if (!userId) {
+        var users = jf.jellyfin.getUsers() || [];
+        if (users.length === 0) {
+            return res.status(500).json({ error: 'no users' });
+        }
+        userId = users[0].id;
+    }
+    jf.jellyfin.setFavorite(userId, id, fav);
+    return res.json({ ok: true });
+});
+```
+
+mods.json:
+```json
+[
+  {
+    "id": "my-mod",
+    "name": "My Mod",
+    "author": "yourname",
+    "description": "Does something useful.",
+    "version": "1.0.0",
+    "jellyfin": "10.10+",
+    "tags": ["example"],
+    "previewUrl": "",
+    "sourceUrl": "",
+    "cssUrl": null,
+    "jsUrl": "https://cdn.jsdelivr.net/gh/user/repo@main/mods/my-mod/browser.js",
+    "serverJs": "https://cdn.jsdelivr.net/gh/user/repo@main/mods/my-mod/server.js",
+    "permissions": ["jellyfin.read", "store", "scheduler"],
+    "requires": [],
+    "vars": [
+      { "key": "LABEL", "name": "Label", "type": "text", "default": "My Jellyfin" },
+      { "key": "ACCENT_COLOR", "name": "Accent Color", "type": "color", "default": "#00a4dc" }
+    ]
+  }
+]
+```
+
+---
+
+## Hard rules - never break these
+
+1. Always bump version when changing any asset file.
+2. serverJs vars use jf.vars['KEY'], not {{KEY}}.
+3. All jf.store / jf.userStore values are strings - String() before set, parse after get.
+4. jf.jellyfin.* return CLR-wrapped objects - they do NOT count against the 64MB Jint heap limit.
+5. Event handlers must be void - do not return from jf.jellyfin.on() callbacks.
+6. Clean up in jf.onStop: cancelAll(), offAll(), jf.jellyfin.off() per event, webhooks.unregister() per hook.
+7. requires[] controls load order - missing dependency skips the dependent mod entirely.
+8. Routes base path: /JellyFrame/mods/{mod-id}/api/
+9. Inbound webhooks: POST /JellyFrame/mods/{mod-id}/webhooks/{name}
+10. Do not use "version": "latest" - never invalidates cache.
+11. Assets must be HTTPS with Access-Control-Allow-Origin: *.
+12. No Object.assign or spread on CLR-backed objects.
+13. Always use braces on if/else/for in server JS.
+14. No non-ASCII in JS files.
+15. isFavorite is per-user - never cache it in a shared store.
+16. req.body is ExpandoObject - dot-access works, Object.assign does not.
+17. preconnect is optional - omit entirely if not needed.
+18. After cache purge, update manifest version AND save config first - otherwise re-download reuses old filename.

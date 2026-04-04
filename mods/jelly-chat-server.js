@@ -1,12 +1,7 @@
-jf.onStart(function () {
-    jf.log.info('Private Chat Service Started');
-});
+jf.onStart(function() {});
+jf.onStop(function() {});
 
-jf.onStop(function () {
-    jf.log.info('Private Chat Service Stopped');
-});
-
-jf.routes.get('/sync', function (req, res) {
+jf.routes.get('/sync', function(req, res) {
     var myId = req.query['myId'] ? String(req.query['myId']) : null;
     var targetId = req.query['targetId'] ? String(req.query['targetId']) : null;
 
@@ -14,13 +9,17 @@ jf.routes.get('/sync', function (req, res) {
         return res.status(400).json({ error: 'Missing myId' });
     }
 
-    var allUsers = jf.jellyfin.getUsers() || [];
-    var sessions = jf.jellyfin.getSessions() || [];
+    var allUsers = jf.jellyfin.getUsers();
+    if (!allUsers || typeof allUsers.length === 'undefined') allUsers = [];
+
+    var sessions = jf.jellyfin.getSessions();
+    if (!sessions || typeof sessions.length === 'undefined') sessions = [];
+
     var sessionMap = {};
 
     for (var i = 0; i < sessions.length; i++) {
         var s = sessions[i];
-        if (s.userId && s.userId !== myId) {
+        if (s && s.userId && s.userId !== myId) {
             if (!sessionMap[s.userId]) sessionMap[s.userId] = { isWatching: false, online: true };
             if (s.nowPlayingItem !== null) sessionMap[s.userId].isWatching = true;
         }
@@ -29,7 +28,7 @@ jf.routes.get('/sync', function (req, res) {
     var usersData = [];
     for (var j = 0; j < allUsers.length; j++) {
         var u = allUsers[j];
-        if (u.id !== myId) {
+        if (u && u.id !== myId) {
             var sData = sessionMap[u.id] || { isWatching: false, online: false };
             usersData.push({
                 id: u.id,
@@ -40,7 +39,7 @@ jf.routes.get('/sync', function (req, res) {
         }
     }
 
-    usersData.sort(function (a, b) {
+    usersData.sort(function(a, b) {
         if (a.isOnline === b.isOnline) {
             return a.name.localeCompare(b.name);
         }
@@ -52,8 +51,10 @@ jf.routes.get('/sync', function (req, res) {
         var pairArr = [myId, targetId].sort();
         var pairId = pairArr[0] + '_' + pairArr[1];
         var storeKey = 'chat_' + pairId;
-
-        history = JSON.parse(jf.store.get(storeKey) || '[]');
+        var parsed = JSON.parse(jf.store.get(storeKey) || '[]');
+        if (parsed && typeof parsed.length !== 'undefined') {
+            history = parsed;
+        }
     }
 
     return res.json({
@@ -62,7 +63,7 @@ jf.routes.get('/sync', function (req, res) {
     });
 });
 
-jf.routes.post('/send', function (req, res) {
+jf.routes.post('/send', function(req, res) {
     var body = req.body;
     if (!body || !body.fromId || !body.toId || !body.text) {
         return res.status(400).json({ error: 'Incomplete data' });
@@ -76,6 +77,7 @@ jf.routes.post('/send', function (req, res) {
     var storeKey = 'chat_' + pairId;
 
     var history = JSON.parse(jf.store.get(storeKey) || '[]');
+    if (!history || typeof history.length === 'undefined') history = [];
 
     history.push({
         fromId: fromId,

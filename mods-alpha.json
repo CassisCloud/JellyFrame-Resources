@@ -1,13 +1,63 @@
 [
   {
-    "id": "jelly-chat",
-    "name": "JellyChat Realtime",
+    "id": "my-media-background-replacer",
+    "name": "My Media Background Replacer",
     "author": "grimmdev",
-    "description": "Facebook-style chat and online status for all users.",
-    "version": "0.0.3",
-    "permissions": ["jellyfin.read", "store"],
-    "vars": [],
-    "jsUrl": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/jelly-chat-client.js",
-    "serverJs": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/jelly-chat-server.js"
+    "description": ".",
+    "version": "0.0.1",
+    "permissions": [],
+    "vars": [
+      {
+      "key": "BG_MOVIES",
+      "name": "Movies Image URL",
+      "description": "Direct link to an image or GIF for the 'Movies' library.",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "BG_SHOWS",
+      "name": "Shows Image URL",
+      "description": "Direct link to an image or GIF for the 'Shows' library.",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "BG_MUSIC",
+      "name": "Music Image URL",
+      "description": "Direct link to an image or GIF for the 'Music' library.",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "BG_BOOKS",
+      "name": "Books Image URL",
+      "description": "Direct link to an image or GIF for the 'Books' library.",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "BG_COMICS",
+      "name": "Comics Image URL",
+      "description": "Direct link to an image or GIF for the 'Comics' library.",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "BG_LIVETV",
+      "name": "Live TV Image URL",
+      "description": "Direct link to an image or GIF for the 'Live TV' library.",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "BG_CUSTOM",
+      "name": "Custom Overrides",
+      "description": "For any other libraries. Format: LibraryName=URL|OtherLibrary=URL",
+      "type": "text",
+      "default": ""
+    }
+    ],
+    "jsUrl": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/my-media-background-replacer.js",
+    "serverJs": ""
   }
 ]

@@ -700,4 +700,26 @@
     "preconnect": [],
     "vars": []
   }
+  ,
+  {
+    "id": "weather-card-homepage",
+    "name": "Weather App Homepage",
+    "author": "Grimmdev",
+    "description": "A homepage app that adds the weather forecast.",
+    "version": "1.0.0",
+    "jellyfin": "10.11+",
+    "tags": [
+      "ui",
+      "homepage"
+    ],
+    "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/weather-card.png",
+    "sourceUrl": "https://jellyfin-pg.github.io/JellyFrame/",
+    "cssUrl": "",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/weather-card-client.v1.min.js",
+    "serverJs": "",
+    "permissions": [],
+    "requires": ["home-app-layout"],
+    "preconnect": [],
+    "vars": []
+  }
 ]

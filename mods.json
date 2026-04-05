@@ -674,7 +674,7 @@
     "cssUrl": "",
     "jsUrl": "  https://cdn.jsdelivr.net/gh/Damocles-fr/jellyfin-imdb-episodes-heatmap-ratings-grid@main/Jellyfin-Episodes-Ratings-Grid-JF-Library-Links.js",
     "serverJs": "",
-    "permissions": ["jellyfin.read", "store"],
+    "permissions": [],
     "requires": [],
     "preconnect": [],
     "vars": []

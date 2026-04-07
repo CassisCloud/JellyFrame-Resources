@@ -1,11 +1,11 @@
 var STORE_KEY = 'requests';
 
 function loadRequests() {
-    var raw = jf.store.get(STORE_KEY);
-    if (!raw) {
-        return [];
-    }
     try {
+        var raw = jf.store.get(STORE_KEY);
+        if (!raw) {
+            return [];
+        }
         return JSON.parse(raw);
     } catch (e) {
         return [];
@@ -13,7 +13,11 @@ function loadRequests() {
 }
 
 function saveRequests(list) {
-    jf.store.set(STORE_KEY, JSON.stringify(list));
+    try {
+        jf.store.set(STORE_KEY, JSON.stringify(list));
+    } catch (e) {
+        jf.log.error('[media-request] Failed to save requests: ' + e);
+    }
 }
 
 function nextId(list) {
@@ -29,14 +33,27 @@ function nextId(list) {
 
 // Automatically filter lists based on privileges to prevent data leaks
 jf.routes.get('/requests', function (req, res) {
-    var userId = (req.query && req.query['userId']) ? String(req.query['userId']).trim() : '';
+    var userId = '';
+    try {
+        if (req.query && req.query['userId']) {
+            userId = String(req.query['userId']).trim();
+        }
+    } catch (e) {
+        // Ignore ExpandoObject missing key errors
+    }
+
     var list = loadRequests();
 
-    var user = jf.jellyfin.getUser(userId);
     var isAdmin = false;
-    
-    if (user && user.policy && user.policy.isAdministrator) {
-        isAdmin = true;
+    if (userId) {
+        try {
+            var user = jf.jellyfin.getUser(userId);
+            if (user && user.policy && user.policy.isAdministrator) {
+                isAdmin = true;
+            }
+        } catch (e) {
+            // Failsafe in case getUser throws on an invalid GUID
+        }
     }
 
     var filtered = [];
@@ -55,14 +72,19 @@ jf.routes.get('/requests', function (req, res) {
 });
 
 jf.routes.post('/requests', function (req, res) {
-    var body = req.body || {};
-
-    var title    = body.title    ? String(body.title).trim()    : '';
-    var type     = body.type     ? String(body.type).trim()     : '';
-    var year     = body.year     ? String(body.year).trim()     : '';
-    var note     = body.note     ? String(body.note).trim()     : '';
-    var userId   = body.userId   ? String(body.userId).trim()   : '';
-    var userName = body.userName ? String(body.userName).trim() : '';
+    var title = '', type = '', year = '', note = '', userId = '', userName = '';
+    
+    try {
+        var body = req.body || {};
+        title    = body.title    ? String(body.title).trim()    : '';
+        type     = body.type     ? String(body.type).trim()     : '';
+        year     = body.year     ? String(body.year).trim()     : '';
+        note     = body.note     ? String(body.note).trim()     : '';
+        userId   = body.userId   ? String(body.userId).trim()   : '';
+        userName = body.userName ? String(body.userName).trim() : '';
+    } catch (e) {
+        // Ignore ExpandoObject missing key errors
+    }
 
     if (!title || !type) {
         return res.status(400).json({ error: 'title and type are required' });
@@ -85,21 +107,25 @@ jf.routes.post('/requests', function (req, res) {
 
     jf.log.info('[media-request] New request: ' + title + ' (' + type + ') from ' + (userName || userId || 'unknown'));
 
-    var webhookUrl = (jf.vars['WEBHOOK_URL'] || '').trim();
-    if (webhookUrl) {
-        var payload = {
-            content: 'New media request from ' + (userName || 'unknown') + ': ' + title + ' (' + type + (year ? ', ' + year : '') + ')',
-            request: entry
-        };
-        var webhookSecret = (jf.vars['WEBHOOK_SECRET'] || '').trim();
-        var opts = { timeout: 8000 };
-        if (webhookSecret) {
-            opts.secret = webhookSecret;
+    try {
+        var webhookUrl = (jf.vars['WEBHOOK_URL'] || '').trim();
+        if (webhookUrl) {
+            var payload = {
+                content: 'New media request from ' + (userName || 'unknown') + ': ' + title + ' (' + type + (year ? ', ' + year : '') + ')',
+                request: entry
+            };
+            var webhookSecret = (jf.vars['WEBHOOK_SECRET'] || '').trim();
+            var opts = { timeout: 8000 };
+            if (webhookSecret) {
+                opts.secret = webhookSecret;
+            }
+            var result = jf.webhooks.send(webhookUrl, payload, opts);
+            if (!result.ok) {
+                jf.log.warn('[media-request] Webhook delivery failed: ' + result.status);
+            }
         }
-        var result = jf.webhooks.send(webhookUrl, payload, opts);
-        if (!result.ok) {
-            jf.log.warn('[media-request] Webhook delivery failed: ' + result.status);
-        }
+    } catch (e) {
+        jf.log.warn('[media-request] Webhook error: ' + e);
     }
 
     return res.json({ ok: true, request: entry });
@@ -107,12 +133,27 @@ jf.routes.post('/requests', function (req, res) {
 
 // Secured: Only Administrators can Patch/Update Statuses
 jf.routes.patch('/requests/:id', function (req, res) {
-    var id      = req.pathParams['id'];
-    var body    = req.body || {};
-    var status  = body.status ? String(body.status).trim() : '';
-    var adminId = body.adminId ? String(body.adminId).trim() : '';
+    var id = '';
+    try {
+        if (req.pathParams && req.pathParams['id']) {
+            id = String(req.pathParams['id']).trim();
+        }
+    } catch (e) {}
 
-    var adminUser = jf.jellyfin.getUser(adminId);
+    var status = '', adminId = '';
+    try {
+        var body = req.body || {};
+        status  = body.status ? String(body.status).trim() : '';
+        adminId = body.adminId ? String(body.adminId).trim() : '';
+    } catch (e) {}
+
+    var adminUser = null;
+    if (adminId) {
+        try {
+            adminUser = jf.jellyfin.getUser(adminId);
+        } catch (e) {}
+    }
+
     if (!adminUser || !adminUser.policy || !adminUser.policy.isAdministrator) {
         return res.status(403).json({ error: 'Unauthorized: Admin privileges required.' });
     }
@@ -151,10 +192,27 @@ jf.routes.patch('/requests/:id', function (req, res) {
 
 // Secured: Only Administrators can Delete Requests
 jf.routes.delete('/requests/:id', function (req, res) {
-    var id      = req.pathParams['id'];
-    var adminId = (req.query && req.query['adminId']) ? String(req.query['adminId']).trim() : '';
+    var id = '';
+    try {
+        if (req.pathParams && req.pathParams['id']) {
+            id = String(req.pathParams['id']).trim();
+        }
+    } catch (e) {}
 
-    var adminUser = jf.jellyfin.getUser(adminId);
+    var adminId = '';
+    try {
+        if (req.query && req.query['adminId']) {
+            adminId = String(req.query['adminId']).trim();
+        }
+    } catch (e) {}
+
+    var adminUser = null;
+    if (adminId) {
+        try {
+            adminUser = jf.jellyfin.getUser(adminId);
+        } catch (e) {}
+    }
+
     if (!adminUser || !adminUser.policy || !adminUser.policy.isAdministrator) {
         return res.status(403).json({ error: 'Unauthorized: Admin privileges required.' });
     }

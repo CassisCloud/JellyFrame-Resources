@@ -31,42 +31,28 @@ function nextId(list) {
     return String(max + 1);
 }
 
-// Automatically filter lists based on privileges to prevent data leaks
 jf.routes.get('/requests', function (req, res) {
     var userId = '';
     try {
-        if (req.query && req.query['userId']) {
-            userId = String(req.query['userId']).trim();
+        if (req.query) {
+            userId = String(req.query.userId || req.query['userId'] || '').trim();
         }
-    } catch (e) {
-        // Ignore ExpandoObject missing key errors
-    }
-
-    var list = loadRequests();
+    } catch (e) {}
 
     var isAdmin = false;
     if (userId) {
         try {
             var user = jf.jellyfin.getUser(userId);
-            if (user && user.policy && user.policy.isAdministrator) {
+            if (user && user.isAdmin === true) {
                 isAdmin = true;
             }
-        } catch (e) {
-            // Failsafe in case getUser throws on an invalid GUID
-        }
+        } catch (e) {}
     }
 
-    var filtered = [];
-    for (var i = 0; i < list.length; i++) {
-        // Admins see everything. Standard users only see their own.
-        if (isAdmin || list[i].userId === userId) {
-            filtered.push(list[i]);
-        }
-    }
-
+    var list = loadRequests();
     return res.json({ 
-        count: filtered.length, 
-        requests: filtered,
+        count: list.length, 
+        requests: list,
         isAdmin: isAdmin
     });
 });
@@ -83,7 +69,7 @@ jf.routes.post('/requests', function (req, res) {
         userId   = body.userId   ? String(body.userId).trim()   : '';
         userName = body.userName ? String(body.userName).trim() : '';
     } catch (e) {
-        // Ignore ExpandoObject missing key errors
+        
     }
 
     if (!title || !type) {
@@ -131,7 +117,6 @@ jf.routes.post('/requests', function (req, res) {
     return res.json({ ok: true, request: entry });
 });
 
-// Secured: Only Administrators can Patch/Update Statuses
 jf.routes.patch('/requests/:id', function (req, res) {
     var id = '';
     try {
@@ -154,7 +139,7 @@ jf.routes.patch('/requests/:id', function (req, res) {
         } catch (e) {}
     }
 
-    if (!adminUser || !adminUser.policy || !adminUser.policy.isAdministrator) {
+    if (!adminUser || adminUser.isAdmin !== true) {
         return res.status(403).json({ error: 'Unauthorized: Admin privileges required.' });
     }
 
@@ -190,7 +175,6 @@ jf.routes.patch('/requests/:id', function (req, res) {
     return res.json({ ok: true });
 });
 
-// Secured: Only Administrators can Delete Requests
 jf.routes.delete('/requests/:id', function (req, res) {
     var id = '';
     try {
@@ -201,8 +185,8 @@ jf.routes.delete('/requests/:id', function (req, res) {
 
     var adminId = '';
     try {
-        if (req.query && req.query['adminId']) {
-            adminId = String(req.query['adminId']).trim();
+        if (req.query) {
+            adminId = String(req.query.adminId || req.query['adminId'] || '').trim();
         }
     } catch (e) {}
 
@@ -213,7 +197,7 @@ jf.routes.delete('/requests/:id', function (req, res) {
         } catch (e) {}
     }
 
-    if (!adminUser || !adminUser.policy || !adminUser.policy.isAdministrator) {
+    if (!adminUser || adminUser.isAdmin !== true) {
         return res.status(403).json({ error: 'Unauthorized: Admin privileges required.' });
     }
 

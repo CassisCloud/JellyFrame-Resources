@@ -12,16 +12,19 @@
         var s = document.createElement('style');
         s.id = 'rpg-css';
         s.innerHTML = 
-            '.rpg-nav-btn { display: flex; align-items: center; background: rgba(0,0,0,0.4); border-radius: 8px; padding: 4px 12px 4px 6px; margin-right: 15px; cursor: pointer; border: 1px solid rgba(255,255,255,0.05); transition: all 0.3s; user-select: none; } ' +
-            '.rpg-nav-btn:hover { background: rgba(255,255,255,0.1); } ' +
-            '.rpg-nav-btn.pulse { transform: scale(1.05); box-shadow: 0 0 15px {{XP_COLOR}}; border-color: {{XP_COLOR}}; background: rgba(0,0,0,0.8); } ' +
-            '.rpg-lvl-box { background: {{XP_COLOR}}; color: #fff; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; margin-right: 10px; box-shadow: inset 0 -3px 5px rgba(0,0,0,0.3); text-shadow: 1px 1px 0 #000; } ' +
-            '.rpg-nav-btn.pulse .rpg-lvl-box { box-shadow: 0 0 15px {{XP_COLOR}}; } ' +
-            '.rpg-nav-info { display: flex; flex-direction: column; width: 110px; } ' +
-            '.rpg-nav-class { font-size: 0.75rem; color: #ddd; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } ' +
-            '.rpg-nav-btn.pulse .rpg-nav-class { color: {{XP_COLOR}}; } ' +
-            '.rpg-bar-bg { width: 100%; height: 5px; background: rgba(255,255,255,0.2); border-radius: 2px; margin-top: 3px; overflow: hidden; } ' +
-            '.rpg-bar-fill { height: 100%; background: {{XP_COLOR}}; transition: width 0.5s ease; } ' +
+            '.rpg-nav-btn { position: relative; display: flex; align-items: center; justify-content: center; background: transparent; margin-right: 15px; cursor: pointer; transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); user-select: none; width: 42px; height: 42px; } ' +
+            '.rpg-nav-btn:hover { transform: scale(1.05); } ' +
+            '.rpg-nav-btn.pulse { transform: scale(1.15); } ' +
+            
+            '.rpg-ring-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: visible; } ' +
+            '.rpg-ring-bg { fill: none; stroke: rgba(128,128,128,0.4); stroke-width: 3.5; stroke-linecap: round; stroke-dasharray: 75, 100; transform: rotate(135deg); transform-origin: 50% 50%; } ' +
+            '.rpg-ring-fill { fill: none; stroke: {{XP_COLOR}}; stroke-width: 3.5; stroke-linecap: round; transform: rotate(135deg); transform-origin: 50% 50%; transition: stroke-dasharray 0.5s ease-out; } ' +
+            
+            '.rpg-hdr-lvl { color: {{XP_COLOR}}; font-weight: 900; font-size: 1.1rem; line-height: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.6); transition: text-shadow 0.3s; position: relative; z-index: 2; margin-top: -2px; } ' +
+            '.rpg-nav-btn.pulse .rpg-hdr-lvl { text-shadow: 0 0 12px {{XP_COLOR}}; } ' +
+            
+            '.rpg-xp-float { position: absolute; top: -10px; color: {{XP_COLOR}}; font-weight: bold; font-size: 0.8rem; pointer-events: none; opacity: 1; transform: translateY(-20px); transition: all 1.5s ease-out; text-shadow: 0 1px 3px rgba(0,0,0,0.8); z-index: 100; white-space: nowrap; } ' +
+            '.rpg-xp-float.fade { opacity: 0; transform: translateY(-40px); } ' +
             
             '.rpg-toast-overlay { position: fixed; top: 20%; left: 50%; transform: translate(-50%, -50%) scale(0.5); opacity: 0; pointer-events: none; z-index: 999999; text-align: center; transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); } ' +
             '.rpg-toast-overlay.show { opacity: 1; transform: translate(-50%, -50%) scale(1); } ' +
@@ -84,11 +87,11 @@
         btn.id = 'rpg-nav-btn';
         btn.className = 'rpg-nav-btn';
         btn.innerHTML = 
-            '<div class="rpg-lvl-box" id="rpg-hdr-lvl">--</div>' +
-            '<div class="rpg-nav-info">' +
-                '<div class="rpg-nav-class" id="rpg-hdr-cls">Loading Sheet</div>' +
-                '<div class="rpg-bar-bg"><div class="rpg-bar-fill" id="rpg-hdr-bar" style="width: 0%;"></div></div>' +
-            '</div>';
+            '<svg viewBox="0 0 36 36" class="rpg-ring-svg">' +
+                '<circle class="rpg-ring-bg" cx="18" cy="18" r="15.915"></circle>' +
+                '<circle class="rpg-ring-fill" id="rpg-hdr-bar" cx="18" cy="18" r="15.915" style="stroke-dasharray: 0, 100;"></circle>' +
+            '</svg>' +
+            '<div class="rpg-hdr-lvl" id="rpg-hdr-lvl">--</div>';
 
         if (header.firstChild) header.insertBefore(btn, header.firstChild);
         else header.appendChild(btn);
@@ -106,8 +109,8 @@
             .then(function(data) {
                 charData = data;
                 var btn = document.getElementById('rpg-nav-btn');
-                if (btn) btn.setAttribute('title', 'Realm: ' + data.realm);
-                updateHeaderUI(data.level, data.pClass, data.progress);
+                if (btn) btn.setAttribute('title', data.pClass + ' • ' + data.realm);
+                updateHeaderUI(data.level, data.progress);
                 
                 var modal = document.getElementById('rpg-modal');
                 if (modal && modal.classList.contains('active')) renderSheet();
@@ -131,7 +134,6 @@
                 fetchSheet(); 
                 
                 var btn = document.getElementById('rpg-nav-btn');
-                var clsTxt = document.getElementById('rpg-hdr-cls');
                 
                 if (d.data.isLevelUp) {
                     var toast = document.getElementById('rpg-level-toast');
@@ -142,29 +144,39 @@
                     }
                 }
 
-                if (btn && clsTxt) {
+                if (btn) {
                     btn.classList.add('pulse');
-                    clsTxt.innerText = d.body; 
-                    updateHeaderUI(d.data.level, null, d.data.progress);
+                    
+                    var floater = document.createElement('div');
+                    floater.className = 'rpg-xp-float';
+                    floater.innerText = d.body;
+                    btn.appendChild(floater);
+                    
+                    void floater.offsetWidth;
+                    floater.classList.add('fade');
+                    
+                    setTimeout(function() { if (floater.parentNode) floater.parentNode.removeChild(floater); }, 1500);
+
+                    updateHeaderUI(d.data.level, d.data.progress);
                     
                     if (animTimer) clearTimeout(animTimer);
                     animTimer = setTimeout(function() {
                         btn.classList.remove('pulse');
-                        if (charData) clsTxt.innerText = charData.pClass;
                     }, 5000);
                 }
             }
         });
     }
 
-    function updateHeaderUI(lvl, pClass, progress) {
+    function updateHeaderUI(lvl, progress) {
         var elLvl = document.getElementById('rpg-hdr-lvl');
-        var elCls = document.getElementById('rpg-hdr-cls');
         var elBar = document.getElementById('rpg-hdr-bar');
 
         if (elLvl) elLvl.innerText = lvl;
-        if (elCls && pClass) elCls.innerText = pClass;
-        if (elBar) elBar.style.width = progress + '%';
+        if (elBar) {
+            var dashProgress = (progress * 0.75).toFixed(2);
+            elBar.style.strokeDasharray = dashProgress + ', 100';
+        }
     }
 
     function openSheet() {

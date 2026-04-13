@@ -135,20 +135,32 @@ In serverJs do NOT use {{KEY}} - use jf.vars['KEY'] instead (live string value a
 
 ---
 
+## Hot reload
+
+Server JS mods support file-system hot reload. When the cached `.js` file on disk changes, JellyFrame automatically restarts the affected mod without requiring a full server restart or config save. This is useful during local development when you have the Jellyfin data directory mounted.
+
+---
+
 ## Permissions reference
 
 | String | Unlocks |
 |---|---|
-| "http" | jf.http |
-| "jellyfin.read" | jf.jellyfin read methods + events |
-| "jellyfin.write" | jf.jellyfin write methods (implies jellyfin.read) |
-| "store" | jf.store and jf.userStore |
-| "scheduler" | jf.scheduler |
-| "webhooks" | jf.webhooks |
-| "rpc" | jf.rpc |
-| "bus" | jf.bus |
+| `"http"` | jf.http |
+| `"jellyfin.read"` | jf.jellyfin read methods + events |
+| `"jellyfin.write"` | jf.jellyfin write methods (implies jellyfin.read) |
+| `"jellyfin.delete"` | jf.jellyfin.deleteItem(), jf.jellyfin.deleteDevice() |
+| `"jellyfin.tasks"` | jf.jellyfin.runScheduledTask(), jf.jellyfin.scanLibrary() |
+| `"jellyfin.refresh"` | jf.jellyfin.refreshMetadata() |
+| `"jellyfin.livetv"` | jf.jellyfin live TV recording write methods |
+| `"jellyfin.admin"` | jf.jellyfin session/user admin methods |
+| `"store"` | jf.store and jf.userStore |
+| `"shared-store"` | jf.kv (cross-mod shared key-value store) |
+| `"scheduler"` | jf.scheduler |
+| `"webhooks"` | jf.webhooks |
+| `"rpc"` | jf.rpc |
+| `"bus"` | jf.bus |
 
-Always available without permission: jf.vars, jf.log, jf.cache, jf.routes, jf.perms, jf.onStart(), jf.onStop()
+Always available without permission: `jf.vars`, `jf.log`, `jf.cache`, `jf.routes`, `jf.perms`, `jf.onStart()`, `jf.onStop()`
 
 ---
 
@@ -156,18 +168,19 @@ Always available without permission: jf.vars, jf.log, jf.cache, jf.routes, jf.pe
 
 ```
 jf.vars        - { KEY: "value", ... }  read-only, always strings
-jf.log         - logging
+jf.log         - logging + recent log retrieval
 jf.cache       - in-memory TTL cache (lost on restart)
 jf.perms       - permission introspection
 jf.routes      - HTTP route registration
-jf.http        - outbound HTTP        [permission: http]
-jf.jellyfin    - Jellyfin API         [permission: jellyfin.read / jellyfin.write]
-jf.store       - persistent storage   [permission: store]
-jf.userStore   - per-user storage     [permission: store]
-jf.scheduler   - intervals and cron   [permission: scheduler]
-jf.bus         - cross-mod event bus  [permission: bus]
-jf.webhooks    - inbound/outbound     [permission: webhooks]
-jf.rpc         - mod-to-mod calls     [permission: rpc]
+jf.http        - outbound HTTP                [permission: http]
+jf.jellyfin    - Jellyfin API                [permission: jellyfin.read / jellyfin.write / etc.]
+jf.store       - persistent per-mod storage  [permission: store]
+jf.userStore   - per-user persistent storage [permission: store]
+jf.kv          - cross-mod shared storage    [permission: shared-store]
+jf.scheduler   - intervals and cron          [permission: scheduler]
+jf.bus         - cross-mod event bus         [permission: bus]
+jf.webhooks    - inbound/outbound webhooks   [permission: webhooks]
+jf.rpc         - mod-to-mod calls            [permission: rpc]
 jf.onStart(fn) - lifecycle hook, called once after load
 jf.onStop(fn)  - lifecycle hook, called before unload
 ```
@@ -184,6 +197,10 @@ jf.log.info('message');
 jf.log.warn('message');
 jf.log.error('message');
 jf.log.info('data: ' + JSON.stringify(obj));
+
+// Retrieve recent log entries from this mod (up to 200 stored in memory)
+var entries = jf.log.getRecent(50);  // -> [{ level, message, time }, ...]
+// 'time' is an ISO 8601 string. 'level' is "debug"|"info"|"warn"|"error".
 ```
 
 ---
@@ -206,7 +223,7 @@ jf.cache.count           // -> number of live entries
 
 ## jf.routes
 
-Routes served at /JellyFrame/mods/{mod-id}/api/{path}
+Routes served at `/JellyFrame/mods/{mod-id}/api/{path}`
 
 ```js
 jf.routes.get('/path',       function(req, res) { ... });
@@ -249,7 +266,7 @@ Always return res.json(...) to send the response.
 
 ## jf.store
 
-Persistent key-value store. Survives restarts. Values are ALWAYS strings.
+Persistent key-value store scoped to this mod. Survives restarts. Values are ALWAYS strings.
 
 ```js
 jf.store.get(key)          // -> string | null
@@ -275,6 +292,23 @@ jf.userStore.delete(userId, key)
 jf.userStore.clear(userId)
 jf.userStore.keys(userId)       // -> string[]
 jf.userStore.users()            // -> string[] of all user IDs with data
+```
+
+---
+
+## jf.kv — cross-mod shared store
+
+Persistent. Shared across all mods that declare `"shared-store"` permission.
+Keys are auto-namespaced to prevent collisions: `"foo"` stored by mod `"my-mod"` is saved as `"my-mod:foo"`.
+To read another mod's key, pass the fully-qualified form: `"other-mod:foo"`.
+
+```js
+jf.kv.set(key, value)          // write (namespaced to this mod). value must be a string.
+jf.kv.get(key)                 // -> string | null  (own namespace)
+jf.kv.get('other-mod:key')     // -> string | null  (fully-qualified cross-mod read)
+jf.kv.delete(key)              // delete own key
+jf.kv.keys()                   // -> string[]  own keys without namespace prefix
+jf.kv.allKeys()                // -> string[]  ALL keys across all mods, with prefixes
 ```
 
 ---
@@ -307,102 +341,396 @@ var data = r.json();
 
 ---
 
-## jf.jellyfin - read methods
+## jf.jellyfin — read methods
 
 All synchronous. Return null or [] on failure. Never throw.
+All require `"jellyfin.read"` permission unless noted.
 
 ```js
+// --- Items ---
 jf.jellyfin.getItem(id, userId?)             // -> item | null  (userId required for isFavorite)
-jf.jellyfin.getItems(query)                  // -> item[] | null
+jf.jellyfin.getItems(query)                  // -> item[]
+jf.jellyfin.getItemsByIds(ids, userId?)      // -> item[]  ids: array or comma-separated string
 jf.jellyfin.getItemByPath(path)              // -> item | null
+jf.jellyfin.getItemCount(query)              // -> number  (count without fetching full data)
 jf.jellyfin.search(term, limit?)             // -> item[]  default limit 20
 jf.jellyfin.getLatestItems(userId, limit?)   // -> item[]  default 20
 jf.jellyfin.getResumeItems(userId, limit?)   // -> item[]  default 10
+jf.jellyfin.getNextUp(userId, limit?, seriesId?)  // -> item[]  next unwatched episodes
+jf.jellyfin.getSimilarItems(itemId, userId?, limit?)  // -> item[]  default limit 12
+
+// --- Libraries, collections, playlists ---
+jf.jellyfin.getUserLibraries(userId)         // -> library[]
+jf.jellyfin.getLibraries()                   // -> library[]  all top-level folders, no user filter
+jf.jellyfin.getCollections(userId?)          // -> item[]  box-sets / collections
+jf.jellyfin.getPlaylists(userId)             // -> playlist[]
+
+// --- Genres, studios, people ---
+jf.jellyfin.getGenres(parentId?, userId?)    // -> [{ id, name, itemCount }]
+jf.jellyfin.getStudios(parentId?, userId?)   // -> [{ id, name, itemCount }]
+jf.jellyfin.getPerson(name)                  // -> item | null
+jf.jellyfin.getPersonItems(personName, userId?, itemType?, limit?)  // -> item[]
+
+// --- Stats ---
+jf.jellyfin.getItemCounts(userId?)           // -> { movieCount, seriesCount, episodeCount, songCount, albumCount, artistCount, bookCount, boxSetCount, musicVideoCount, trailerCount, itemCount }
+
+// --- Users ---
 jf.jellyfin.getUsers()                       // -> user[]
 jf.jellyfin.getUser(id)                      // -> user | null
 jf.jellyfin.getUserByName(name)              // -> user | null
+
+// --- Sessions (requires jellyfin.admin) ---
 jf.jellyfin.getSessions()                    // -> session[]
 jf.jellyfin.getSessionsForUser(userId)       // -> session[]
-jf.jellyfin.getUserLibraries(userId)         // -> library[]
-jf.jellyfin.getPlaylists(userId)             // -> playlist[]
+jf.jellyfin.getActiveSessions()              // -> session[]  only active, includes transcodingInfo
+
+// --- User data ---
+jf.jellyfin.getUserData(itemId, userId)      // -> { played, isFavorite, playbackPositionTicks, playCount, rating, likes, lastPlayedDate } | null
+
+// --- Media sources / playback info ---
+jf.jellyfin.getPlaybackInfo(itemId, userId)  // -> mediaSource[]
+
+// --- Server info ---
 jf.jellyfin.getSubtitleProviders()           // -> provider[]
 jf.jellyfin.getEncoderVersion()              // -> string
 jf.jellyfin.getEncoderInfo()                 // -> object
+
+// --- Activity log ---
+jf.jellyfin.getActivity(limit?, userId?)     // -> activityEntry[]  default limit 50, max 500
+
+// --- Scheduled tasks ---
+jf.jellyfin.getScheduledTasks()              // -> task[]
+
+// --- Devices ---
+jf.jellyfin.getDevices(userId?)              // -> device[]
+
+// --- Live TV (requires jellyfin.read) ---
+jf.jellyfin.getChannels(userId?, limit?, startIndex?)   // -> item[]
+jf.jellyfin.getPrograms(query, userId?)                 // -> program[]
+jf.jellyfin.getRecordings(userId?, channelId?, isInProgress?, limit?, startIndex?)  // -> recording[]
+jf.jellyfin.getTimers(channelId?, seriesTimerId?)       // -> timer[]
+jf.jellyfin.getSeriesTimers()                           // -> seriesTimer[]
+jf.jellyfin.getLiveTvInfo()                             // -> { isEnabled, services, enabledUsers }
 ```
 
-getItems query fields (all strings):
+### getItems query fields (all strings)
+
 ```
-type       - "Movie" | "Series" | "Episode" | "Audio" | "MusicAlbum" | "Season" | etc.
-recursive  - "true" | "false"
-limit      - "20"
-sortBy     - "DateCreated" | "SortName" | "CommunityRating" | "Random" | etc.
-sortOrder  - "Ascending" | "Descending"
-parentId   - folder/library/playlist ID
-userId     - user ID (required to get correct isFavorite)
-filters    - "IsPlayed" | "IsUnplayed" | "IsFavorite" | etc.
+type        - "Movie" | "Series" | "Episode" | "Audio" | "MusicAlbum" | "Season" |
+              "BoxSet" | "MusicVideo" | "Trailer" | "Book" | "Person" | "LiveTvProgram" | etc.
+recursive   - "true" | "false"
+limit       - "20"
+startIndex  - "0"
+sortBy      - "DateCreated" | "SortName" | "CommunityRating" | "Random" |
+              "DatePlayed" | "PlayCount" | "PremiereDate" | "ProductionYear" | etc.
+sortOrder   - "Ascending" | "Descending"
+parentId    - folder/library/playlist/series ID
+userId      - user ID (required to get correct isFavorite)
+isFavorite  - "true" | "false"
+searchTerm  - text search
+mediaTypes  - "Video" | "Audio" | "Photo" | "Book"
 ```
 
-Common item fields:
+### getPrograms additional query fields (all strings)
+
 ```
-item.id, item.name, item.type, item.serverId
-item.overview, item.genres (string[]), item.tags (string[])
-item.productionYear, item.officialRating, item.communityRating
-item.runTimeTicks       - divide by 600000000 for minutes, 10000000 for seconds
-item.imageTags          - { Primary: "tag", Thumb: "tag", Banner: "tag", Logo: "tag" }
+isAiring       - "true" | "false"
+isMovie        - "true" | "false"
+isSeries       - "true" | "false"
+isNews         - "true" | "false"
+isKids         - "true" | "false"
+isSports       - "true" | "false"
+minStartDate   - ISO 8601 string
+maxStartDate   - ISO 8601 string
+minEndDate     - ISO 8601 string
+maxEndDate     - ISO 8601 string
+```
+
+### Item fields (returned from all item methods)
+
+```
+item.id                 - string (32-char hex, no dashes)
+item.name               - string
+item.type               - "Movie"|"Series"|"Episode"|"Audio"|"MusicAlbum"|"Season"|"BoxSet"|etc.
+item.path               - filesystem path string
+item.overview           - string
+item.premiereDate       - DateTime | null
+item.officialRating     - string (e.g. "PG-13", "TV-MA")
+item.communityRating    - number | null
+item.genres             - string[]
+item.tags               - string[]
+item.providerIds        - { Imdb: "tt...", Tmdb: "...", Tvdb: "...", ... }
+item.parentId           - string
+item.productionYear     - number | null
+item.runTimeTicks       - number | null  (divide by 10000000 for seconds, 600000000 for minutes)
+item.isFavorite         - boolean  (only correct when userId passed to the query)
+item.dateCreated        - DateTime
+item.dateModified       - DateTime
+item.seriesName         - string | null  (Episode only)
+item.seasonName         - string | null  (Episode only)
+item.indexNumber        - number | null  (episode/track number within season/album)
+item.imageTags          - { Primary, Thumb, Banner, Logo, Backdrop }  each a tag string or null
 item.backdropImageTags  - string[]
-item.isFavorite         - boolean (only populated when userId passed)
-item.path               - filesystem path
-item.seriesName, item.seasonName, item.indexNumber
-item.parentId, item.parentIndexNumber
 ```
 
-Image URL pattern:
+### Image URL pattern
+
 ```
 /Items/{itemId}/Images/Primary?tag={tag}&quality=90&maxWidth=400
 /Items/{itemId}/Images/Backdrop/0?tag={tag}&quality=90&maxWidth=1920
 /Items/{itemId}/Images/Logo?tag={tag}&quality=90&maxWidth=400
 /Items/{itemId}/Images/Thumb?tag={tag}&quality=90
+/Items/{itemId}/Images/Banner?tag={tag}&quality=90
 ```
 
-Common user fields:
+### User fields
+
 ```
-user.id, user.name, user.lastLoginDate, user.lastActivityDate
-user.policy.isAdministrator, user.policy.isDisabled
+user.id                    - string
+user.name                  - string
+user.isAdmin               - boolean
+user.isDisabled            - boolean
+user.lastLoginDate         - DateTime | null
+user.lastActivityDate      - DateTime | null
+user.hasPassword           - boolean
 ```
 
-Common session fields:
+### Session fields (getSessions / getSessionsForUser)
+
 ```
-session.id, session.userId, session.userName
-session.client, session.deviceName, session.deviceId
-session.nowPlayingItem   - item | null
-session.playState        - { isPaused, positionTicks, canSeek }
+session.id                  - string
+session.userId              - string
+session.userName            - string
+session.client              - string (app name)
+session.deviceName          - string
+session.deviceId            - string
+session.remoteEndPoint      - string
+session.lastActivityDate    - DateTime
+session.supportsMediaControl - boolean
+session.nowPlayingItem      - { id, name, type } | null
+session.playState           - { positionTicks, isPaused, isMuted, volumeLevel } | null
+```
+
+### ActiveSession fields (getActiveSessions only — also includes)
+
+```
+session.appVersion          - string
+session.supportsRemoteControl - boolean
+session.transcodingInfo     - { videoCodec, audioCodec, container, isVideoDirect, isAudioDirect, bitrate, framerate, completionPercentage } | null
+```
+
+### getUserData fields
+
+```
+userData.played                  - boolean
+userData.isFavorite              - boolean
+userData.playbackPositionTicks   - number
+userData.playCount               - number
+userData.rating                  - number | null
+userData.likes                   - boolean | null
+userData.lastPlayedDate          - DateTime | null
+```
+
+### getPlaybackInfo returns array of mediaSources
+
+```
+source.id                   - string
+source.name                 - string
+source.container            - string
+source.bitrate              - number | null
+source.runTimeTicks         - number | null
+source.supportsDirectPlay   - boolean
+source.supportsDirectStream - boolean
+source.supportsTranscoding  - boolean
+source.transcodingUrl       - string | null
+source.mediaStreams          - array of:
+  { index, type, codec, language, displayTitle, isDefault, isForced, bitrate, width, height, channels, sampleRate }
+```
+
+### getScheduledTasks returns array of tasks
+
+```
+task.id          - string
+task.name        - string
+task.description - string
+task.category    - string
+task.state       - "Idle" | "Running" | "Cancelling"
+task.progress    - number | null
+task.lastResult  - { status, startTime, endTime, errorMessage } | null
+```
+
+### getDevices returns array of devices
+
+```
+device.id               - string
+device.name             - string
+device.customName       - string | null
+device.appName          - string
+device.appVersion       - string
+device.lastUserName     - string
+device.lastUserId       - string | null
+device.dateLastActivity - DateTime
+```
+
+### getActivity returns array of entries
+
+```
+entry.id            - number
+entry.name          - string
+entry.overview      - string
+entry.shortOverview - string
+entry.type          - string
+entry.itemId        - string | null
+entry.date          - DateTime
+entry.userId        - string
+entry.severity      - "Trace"|"Debug"|"Information"|"Warning"|"Error"|"Critical"
+```
+
+### Live TV: program fields
+
+```
+program.id, program.name, program.channelId, program.channelName
+program.startDate, program.endDate, program.overview
+program.isLive, program.isSeries, program.isMovie, program.isKids, program.isSports, program.isNews
+program.episodeTitle, program.timerId, program.seriesTimerId, program.genres
+```
+
+### Live TV: timer fields
+
+```
+timer.id, timer.name, timer.channelId, timer.channelName
+timer.programId, timer.startDate, timer.endDate
+timer.status, timer.seriesTimerId
+timer.prePaddingSeconds, timer.postPaddingSeconds
 ```
 
 ---
 
-## jf.jellyfin - write methods
+## jf.jellyfin — write methods
+
+All require `"jellyfin.write"` unless noted. All synchronous except SendMessage/playback controls which return silently.
 
 ```js
-jf.jellyfin.setFavorite(userId, itemId, true|false)
-jf.jellyfin.setWatched(userId, itemId, true|false)
-jf.jellyfin.refreshLibrary()
+// --- Favorites / ratings / play state ---
+jf.jellyfin.setFavourite(itemId, userId, isFavourite)   // -> boolean
+jf.jellyfin.setRating(itemId, userId, rating)           // -> boolean  rating: 0.0-10.0 or null to clear
+jf.jellyfin.markPlayed(itemId, userId)                  // -> boolean
+jf.jellyfin.markUnplayed(itemId, userId)                // -> boolean
+
+// --- Session/playback control ---
 jf.jellyfin.sendMessageToSession(sessionId, header, text, timeoutMs?)
 jf.jellyfin.sendMessageToAllSessions(header, text, timeoutMs?)
 jf.jellyfin.stopPlayback(sessionId)
 jf.jellyfin.pausePlayback(sessionId)
 jf.jellyfin.resumePlayback(sessionId)
-jf.jellyfin.seekPlayback(sessionId, positionTicks)    // seconds * 10000000
+jf.jellyfin.seekPlayback(sessionId, positionTicks)      // positionTicks = seconds * 10000000
 jf.jellyfin.playItem(sessionId, itemId)
-jf.jellyfin.createPlaylist(userId, name, itemIds[])   // -> playlist ID string
-jf.jellyfin.addToPlaylist(playlistId, itemIds[], userId)
 jf.jellyfin.downloadSubtitles(itemId, subtitleIndex)
+
+// --- Playback reporting ---
+jf.jellyfin.reportPlaybackStart(sessionId, itemId, mediaSourceId?, audioStreamIndex?, subtitleStreamIndex?)   // -> boolean
+jf.jellyfin.reportPlaybackProgress(sessionId, itemId, positionTicks?, isPaused?, mediaSourceId?, playSessionId?)  // -> boolean
+jf.jellyfin.reportPlaybackStopped(sessionId, itemId, positionTicks?, failed?, mediaSourceId?, playSessionId?)  // -> boolean
+
+// --- WebSocket notifications ---
+// Sends a GeneralCommandType message to a session's open WebSocket connection.
+// type: "DisplayMessage" | "GoHome" | "MoveUp" | "MoveDown" | etc. (GeneralCommandType enum)
+jf.jellyfin.sendWebSocketMessage(sessionId, type, arguments?)
+
+// Sends a JellyFrameNotification message over WebSocket (browser mod can listen with ApiClient.addEventListener('message'))
+// Returns number of WebSocket sessions notified. userId null = broadcast to all.
+jf.jellyfin.notify(userId, { title, body, type, data })  // -> number
+
+// --- Metadata editing ---
+jf.jellyfin.updateMetadata(itemId, fields)
+// fields: { name?, overview?, officialRating?, communityRating?, productionYear?,
+//           genres?: JSON string array, tags?: JSON string array,
+//           providerIds?: JSON object, premiereDate?: ISO string }
+// -> boolean
+
+jf.jellyfin.setTags(itemId, tags)            // tags: JS array or comma-separated string -> boolean
+jf.jellyfin.setOfficialRating(itemId, rating) // -> boolean
+
+// imageType: "Primary"|"Backdrop"|"Banner"|"Logo"|"Thumb"|"Art"|"Disc"|"Box"|"Screenshot"|"Menu"|"Chapter"|"BoxRear"|"Profile"
+jf.jellyfin.setImage(itemId, imageType, url) // downloads from URL and saves -> boolean
+
+// --- Collections and playlists ---
+jf.jellyfin.createCollection(name, itemIds?) // -> collectionId string | null
+jf.jellyfin.addToCollection(collectionId, itemIds)  // -> boolean
+jf.jellyfin.createPlaylist(name, itemIds?, userId?) // -> playlistId string | null
+jf.jellyfin.addToPlaylist(playlistId, itemIds, userId?)  // -> boolean
+
+// --- Library ---
+jf.jellyfin.refreshLibrary()  // DEPRECATED alias — prefer jf.jellyfin.scanLibrary()
 ```
 
 ---
 
-## jf.jellyfin - events
+## jf.jellyfin — tasks methods
 
-Require jellyfin.read. Fire on Jellyfin domain events - no polling.
+Require `"jellyfin.tasks"` permission.
+
+```js
+jf.jellyfin.scanLibrary()                  // queues a full library scan
+jf.jellyfin.runScheduledTask(taskId)       // -> boolean  taskId from getScheduledTasks()
+```
+
+---
+
+## jf.jellyfin — metadata refresh
+
+Requires `"jellyfin.refresh"` permission.
+
+```js
+jf.jellyfin.refreshMetadata(itemId, replaceAll?)  // -> boolean  queues provider refresh
+// replaceAll=true forces full replacement of all metadata from providers
+```
+
+---
+
+## jf.jellyfin — delete methods
+
+Require `"jellyfin.delete"` permission.
+
+```js
+jf.jellyfin.deleteItem(itemId)     // -> boolean  removes from library (NOT from disk)
+jf.jellyfin.deleteDevice(deviceId) // -> boolean  removes registered device
+```
+
+---
+
+## jf.jellyfin — admin methods
+
+Require `"jellyfin.admin"` permission.
+
+```js
+jf.jellyfin.getActiveSessions()          // -> session[] (see ActiveSession fields above)
+jf.jellyfin.getSessions()                // -> session[]
+jf.jellyfin.getSessionsForUser(userId)   // -> session[]
+jf.jellyfin.terminateSession(sessionId)  // -> boolean
+jf.jellyfin.createUser(username)         // -> userId string | null
+jf.jellyfin.deleteUser(userId)           // -> boolean
+jf.jellyfin.resetUserPassword(userId)    // -> boolean
+```
+
+---
+
+## jf.jellyfin — live TV write methods
+
+Require `"jellyfin.livetv"` permission.
+
+```js
+jf.jellyfin.createTimer(programId, prePaddingSeconds?, postPaddingSeconds?)          // -> boolean
+jf.jellyfin.createSeriesTimer(programId, recordNewOnly?, recordAnyChannel?, prePaddingSeconds?, postPaddingSeconds?)  // -> boolean
+jf.jellyfin.cancelTimer(timerId)           // -> boolean
+jf.jellyfin.cancelSeriesTimer(seriesTimerId)  // -> boolean
+```
+
+---
+
+## jf.jellyfin — events
+
+Require `"jellyfin.read"`. Fire on Jellyfin domain events - no polling.
 
 ```js
 jf.jellyfin.on('item.added',       function(data) { });  // data.itemId, data.itemName, data.userId
@@ -410,10 +738,11 @@ jf.jellyfin.on('item.updated',     function(data) { });
 jf.jellyfin.on('item.removed',     function(data) { });
 jf.jellyfin.on('playback.started', function(data) { });  // + data.sessionId, data.userName, data.itemName
 jf.jellyfin.on('playback.stopped', function(data) { });  // + data.positionTicks, data.playedToEnd
-jf.jellyfin.off('item.added');
+jf.jellyfin.off('item.added');   // pass the event name string, not a subscription ID
 ```
 
 Event handlers MUST be void. Do not return a value from on() callbacks.
+Call jf.jellyfin.off('eventName') in jf.onStop for each registered event.
 
 ---
 
@@ -483,12 +812,14 @@ jf.perms.granted()      // -> string[]
 ```js
 jf.onStart(function() {
     jf.log.info('started');
+    // register routes, events, scheduler, webhooks here
 });
 
 jf.onStop(function() {
     jf.scheduler.cancelAll();
     jf.bus.offAll();
     jf.jellyfin.off('playback.started');
+    jf.jellyfin.off('item.added');
     jf.webhooks.unregister('my-hook');
     jf.log.info('stopped');
 });
@@ -530,6 +861,20 @@ All jf.* surfaces are already camelCase.
 - Jellyfin's CSS overrides appearance:none on inputs and many class-based styles
 - Use inline style attributes on all UI elements you create - never rely on CSS classes
 - isFavorite is per-user - always pass userId to getItem/getItems, never cache it shared
+
+### Listening for JellyFrameNotification in browser.js
+
+Server mods can call `jf.jellyfin.notify(userId, payload)` to push messages to browser clients over the existing Jellyfin WebSocket:
+
+```js
+// In browser.js (jsUrl)
+ApiClient.addEventListener('message', function(e, msg) {
+    if (msg.MessageType === 'JellyFrameNotification') {
+        var d = msg.Data; // { title, body, type, modId, data }
+        // render your own toast/notification here
+    }
+});
+```
 
 ---
 
@@ -583,35 +928,33 @@ jf.routes.post('/favourite/:id', function(req, res) {
         }
         userId = users[0].id;
     }
-    jf.jellyfin.setFavorite(userId, id, fav);
+    jf.jellyfin.setFavourite(id, userId, fav);
     return res.json({ ok: true });
 });
 ```
 
-mods.json:
+mods.json entry:
 ```json
-[
-  {
-    "id": "my-mod",
-    "name": "My Mod",
-    "author": "yourname",
-    "description": "Does something useful.",
-    "version": "1.0.0",
-    "jellyfin": "10.10+",
-    "tags": ["example"],
-    "previewUrl": "",
-    "sourceUrl": "",
-    "cssUrl": null,
-    "jsUrl": "https://cdn.jsdelivr.net/gh/user/repo@main/mods/my-mod/browser.js",
-    "serverJs": "https://cdn.jsdelivr.net/gh/user/repo@main/mods/my-mod/server.js",
-    "permissions": ["jellyfin.read", "store", "scheduler"],
-    "requires": [],
-    "vars": [
-      { "key": "LABEL", "name": "Label", "type": "text", "default": "My Jellyfin" },
-      { "key": "ACCENT_COLOR", "name": "Accent Color", "type": "color", "default": "#00a4dc" }
-    ]
-  }
-]
+{
+  "id": "my-mod",
+  "name": "My Mod",
+  "author": "yourname",
+  "description": "Does something useful.",
+  "version": "1.0.0",
+  "jellyfin": "10.10+",
+  "tags": ["example"],
+  "previewUrl": "",
+  "sourceUrl": "",
+  "cssUrl": null,
+  "jsUrl": "https://cdn.jsdelivr.net/gh/user/repo@main/mods/my-mod/browser.js",
+  "serverJs": "https://cdn.jsdelivr.net/gh/user/repo@main/mods/my-mod/server.js",
+  "permissions": ["jellyfin.read", "store", "scheduler"],
+  "requires": [],
+  "vars": [
+    { "key": "LABEL", "name": "Label", "type": "text", "default": "My Jellyfin" },
+    { "key": "ACCENT_COLOR", "name": "Accent Color", "type": "color", "default": "#00a4dc" }
+  ]
+}
 ```
 
 ---
@@ -620,10 +963,10 @@ mods.json:
 
 1. Always bump version when changing any asset file.
 2. serverJs vars use jf.vars['KEY'], not {{KEY}}.
-3. All jf.store / jf.userStore values are strings - String() before set, parse after get.
-4. jf.jellyfin.* return CLR-wrapped objects - they do NOT count against the 64MB Jint heap limit.
+3. All jf.store / jf.userStore / jf.kv values are strings - String() before set, parse after get.
+4. jf.jellyfin.* returns CLR-wrapped objects - they do NOT count against the 64MB Jint heap limit.
 5. Event handlers must be void - do not return from jf.jellyfin.on() callbacks.
-6. Clean up in jf.onStop: cancelAll(), offAll(), jf.jellyfin.off() per event, webhooks.unregister() per hook.
+6. Clean up in jf.onStop: cancelAll(), offAll(), jf.jellyfin.off() per event name, webhooks.unregister() per hook.
 7. requires[] controls load order - missing dependency skips the dependent mod entirely.
 8. Routes base path: /JellyFrame/mods/{mod-id}/api/
 9. Inbound webhooks: POST /JellyFrame/mods/{mod-id}/webhooks/{name}
@@ -632,7 +975,13 @@ mods.json:
 12. No Object.assign or spread on CLR-backed objects.
 13. Always use braces on if/else/for in server JS.
 14. No non-ASCII in JS files.
-15. isFavorite is per-user - never cache it in a shared store.
+15. isFavorite is per-user - never cache it in a shared store without the userId as part of the key.
 16. req.body is ExpandoObject - dot-access works, Object.assign does not.
 17. preconnect is optional - omit entirely if not needed.
 18. After cache purge, update manifest version AND save config first - otherwise re-download reuses old filename.
+19. jf.jellyfin.off() takes the event name string, not a subscription ID.
+20. jf.kv keys are auto-namespaced - to read another mod's key use "other-mod:keyname" (fully qualified).
+21. jf.jellyfin.getSessions() and getActiveSessions() require "jellyfin.admin" permission (not just jellyfin.read).
+22. jf.jellyfin.setFavourite uses British spelling (setFavourite, not setFavorite).
+23. jf.jellyfin.deleteItem() removes from library only, NOT from disk.
+24. jf.jellyfin.notify() returns the number of WebSocket sessions notified (int), not a boolean.

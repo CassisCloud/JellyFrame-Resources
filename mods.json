@@ -10,7 +10,7 @@
     "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jelly-rpg.png",
     "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jelly-rpg-client.js",
     "serverJs": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jelly-rpg-server.js",
-    "permissions": ["jellyfin.read", "store"],
+    "permissions": ["jellyfin.read", "store", "shared-store"],
     "vars": [
       {
         "key": "XP_COLOR",

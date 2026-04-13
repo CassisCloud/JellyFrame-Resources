@@ -14,16 +14,18 @@
     "vars": [
       {
         "key": "XP_COLOR",
-        "name": "Theme Color",
+        "name": "Primary Theme Color",
+        "description": "Color used for progress bars and UI highlights.",
         "type": "color",
-        "default": "#8a2be2",
+        "default": "#00d0ff",
         "allowGradient": true
       },
       {
-        "key": "LEVEL_UP_COLOR",
-        "name": "Level Up Flash Color",
-        "type": "color",
-        "default": "#ffd700"
+        "key": "ENABLE_LEADERBOARD",
+        "name": "Publish to Leaderboard",
+        "description": "If enabled, users' levels are published to the global shared store.",
+        "type": "boolean",
+        "default": "true"
       }
     ]
   },

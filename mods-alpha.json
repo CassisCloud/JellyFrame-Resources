@@ -1,24 +1,27 @@
 [
   {
-    "id": "parental-lock",
-    "name": "Parental Lock",
+    "id": "user-theme",
+    "name": "User Theme Selector",
     "author": "grimmdev",
-    "description": "Securely lock profiles with a 4-digit PIN and choose a maximum allowed rating tier.",
-    "version": "1.1.0",
-    "jellyfin": "10.10+",
-    "tags": ["ui", "server", "parental"],
+    "description": "Allows individual users to override the server theme and select their own from a curated list.",
+    "version": "1.0.0",
+    "jellyfin": "10.9+",
+    "tags": ["ui", "personalization", "themes"],
     "previewUrl": "",
     "sourceUrl": "",
     "cssUrl": null,
-    "jsUrl": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/parental-lock-client.js",
-    "serverJs": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/parental-lock-server.js",
-    "permissions": [
-      "store",
-      "jellyfin.read",
-      "jellyfin.write",
-      "jellyfin.admin"
-    ],
+    "jsUrl": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/user-theme-client.js",
+    "serverJs": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/user-theme-server.js",
+    "permissions": ["store", "http"],
     "requires": [],
-    "vars": []
+    "vars": [
+      {
+        "key": "THEMES_URL",
+        "name": "Themes JSON URL",
+        "description": "URL to a valid themes.json catalog.",
+        "type": "text",
+        "default": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/themes.json"
+      }
+    ]
   }
 ]

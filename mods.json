@@ -30,11 +30,11 @@
     "name": "Responsive Header Right Menu",
     "author": "grimmdev",
     "description": "Automatically moves crowded header icons into a slick, slide-out 'More Options' menu on smaller screens.",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "jellyfin": "10.10+",
     "tags": ["ui", "responsive", "theme"],
     "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/responsive-header-right-menu.png",
-    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/responsive-header-right-menu-client.min.js",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/responsive-header-right-menu-client.v2.min.js",
     "permissions": [],
     "vars": []
   },

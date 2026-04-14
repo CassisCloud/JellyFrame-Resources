@@ -3,7 +3,7 @@
     "id": "user-theme",
     "name": "User Theme Selector",
     "author": "grimmdev",
-    "description": "Allows individual users to override the server theme.",
+    "description": "Allows individual users to override the server theme from their preferences menu.",
     "version": "1.0.0",
     "jellyfin": "10.9+",
     "tags": ["ui", "personalization", "themes"],

@@ -242,20 +242,20 @@
 
             var self = this;
             var adjustSize = function(change) {
-                var allowedSizes = [3, 6, 9, 12];
                 var match = app.className.match(/\bcol-(\d+)\b/);
                 var current = match ? parseInt(match[1], 10) : 12;
                 
-                var closest = allowedSizes.reduce(function(a, b) {
-                    return Math.abs(b - current) < Math.abs(a - current) ? b : a;
-                });
-                var nextIndex = allowedSizes.indexOf(closest) + change;
+                var next = current + change;
                 
-                if (nextIndex >= 0 && nextIndex < allowedSizes.length) {
-                    var next = allowedSizes[nextIndex];
+                if (next >= 1 && next <= 12) {
                     app.className = app.className.replace(/\bcol-\d+\b/g, '').trim();
                     app.classList.add('col-' + next);
-                    ctrl.querySelector('span').textContent = next;
+                    
+                    var labelSpan = ctrl.querySelector('.jf-ctrl-label span');
+                    if (labelSpan) {
+                        labelSpan.textContent = next;
+                    }
+                    
                     self.saveAppsLayout(appArea);
                 }
             };

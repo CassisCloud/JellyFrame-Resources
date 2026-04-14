@@ -103,7 +103,7 @@
         menu.id = MENU_ID;
         
         menu.style.cssText = `
-            position: fixed; bottom: 100px; right: 20px; width: 280px;
+            position: fixed; bottom: 140px; right: 20px; width: 280px;
             background: rgba(12, 12, 12, 0.95); border: 1px solid rgba(255,255,255,0.1);
             backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             padding: 16px; border-radius: 12px; color: #eee;

@@ -1,6 +1,4 @@
-// Responsive Header Dropdown Mod
-// Moves crowded header icons into a slide-out "More Options" menu on small screens.
-// Strictly ES5 compliant for JellyFrame compatibility. Highly optimized.
+// Responsive Header
 
 (function() {
     var MOBILE_BREAKPOINT = 800;
@@ -14,8 +12,8 @@
         var s = document.createElement('style');
         s.id = 'jf-resp-header-css';
         s.innerHTML = 
-            '#jf-more-wrap { position: relative; display: none; align-items: center; margin-left: 5px; z-index: 99999; } ' +
-            '@media (max-width: ' + MOBILE_BREAKPOINT + 'px) { #jf-more-wrap { display: flex; } } ' +
+            '.headerRight { display: flex !important; } ' +
+            '#jf-more-wrap { position: relative; display: flex; align-items: center; margin-left: 5px; z-index: 99999; order: 9999; } ' +
             
             '#jf-more-btn { background: transparent; border: none; color: inherit; cursor: pointer; padding: 8px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s; outline: none; } ' +
             '#jf-more-btn:hover { background: rgba(255,255,255,0.1); } ' +
@@ -85,7 +83,7 @@
         var children = Array.prototype.slice.call(headerRight.children);
         var menuChildren = Array.prototype.slice.call(menu.children);
         
-        function shouldCollapse(el) {
+        function defaultShouldCollapse(el) {
             if (el.id === 'jf-more-wrap' || el.id === 'jrpg-badge-wrap' || el.id === 'rpg-nav-btn') return false;
             
             if (el.classList && el.classList.contains('headerSearchButton')) return false;
@@ -96,18 +94,71 @@
             return false;
         }
         
-        if (isMobile) {
-            for (var i = 0; i < children.length; i++) {
-                var el = children[i];
-                if (shouldCollapse(el)) {
-                    menu.appendChild(el);
-                }
+        for (var i = 0; i < children.length; i++) {
+            var el = children[i];
+            if (el.id === 'jf-more-wrap') continue;
+
+            var collapseAttr = el.getAttribute('data-jf-collapse');
+            var shouldBeInMenu = false;
+
+            if (collapseAttr === 'always') {
+                shouldBeInMenu = true;
+            } else if (collapseAttr === 'never') {
+                shouldBeInMenu = false;
+            } else {
+                shouldBeInMenu = isMobile && defaultShouldCollapse(el);
             }
-        } else {
-            for (var j = 0; j < menuChildren.length; j++) {
-                var mel = menuChildren[j];
+
+            if (shouldBeInMenu && el.parentNode !== menu) {
+                menu.appendChild(el);
+            }
+        }
+
+        for (var j = 0; j < menuChildren.length; j++) {
+            var mel = menuChildren[j];
+
+            var collapseAttr = mel.getAttribute('data-jf-collapse');
+            var shouldBeInMenu = false;
+
+            if (collapseAttr === 'always') {
+                shouldBeInMenu = true;
+            } else if (collapseAttr === 'never') {
+                shouldBeInMenu = false;
+            } else {
+                shouldBeInMenu = isMobile && defaultShouldCollapse(mel);
+            }
+
+            if (!shouldBeInMenu && mel.parentNode !== headerRight) {
                 headerRight.insertBefore(mel, wrap);
             }
+        }
+
+        var allElements = Array.prototype.slice.call(headerRight.children).concat(Array.prototype.slice.call(menu.children));
+        for (var k = 0; k < allElements.length; k++) {
+            var node = allElements[k];
+            if (node.id === 'jf-more-wrap') continue;
+
+            var inMenu = node.parentNode === menu;
+            var orderDesktop = node.getAttribute('data-jf-order-desktop');
+            var orderMobile = node.getAttribute('data-jf-order-mobile');
+
+            if (inMenu && orderMobile !== null) {
+                node.style.order = orderMobile;
+            } else if (!inMenu && orderDesktop !== null) {
+                node.style.order = orderDesktop;
+            } else {
+                node.style.order = '';
+            }
+        }
+
+        if (menu.children.length === 0) {
+            wrap.style.display = 'none';
+            menu.classList.remove('open');
+        } else {
+            wrap.style.display = 'flex';
+        }
+        
+        if (lastIsMobile !== null && lastIsMobile !== isMobile) {
             menu.classList.remove('open');
         }
         

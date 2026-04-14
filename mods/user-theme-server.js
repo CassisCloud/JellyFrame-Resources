@@ -2,48 +2,87 @@ var DEFAULT_THEMES_URL = 'https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Res
 
 function getThemes() {
     var cached = jf.cache.get('themes');
-    if (cached) {
-        return cached;
-    }
+    if (cached) return cached;
 
-    // You can optionally override this using a mod variable "THEMES_URL"
     var url = jf.vars['THEMES_URL'] || DEFAULT_THEMES_URL;
     var r = jf.http.get(url, { timeout: 10000 });
-    
+
     if (r.ok) {
         var themes = r.json();
-        // Cache for 1 hour (3,600,000 ms) to prevent spamming the URL
-        jf.cache.set('themes', themes, 60 * 60 * 1000); 
+        jf.cache.set('themes', themes, 60 * 60 * 1000);
         return themes;
-    } else {
-        jf.log.error('Failed to fetch themes from ' + url + ': HTTP ' + r.status);
-        return [];
     }
+    return [];
 }
 
-jf.onStart(function() {
+jf.onStart(function () {
     jf.log.info('User Theme Selector started.');
-    getThemes(); // Pre-fetch the themes on server startup
 });
 
-// Serve the list of themes
-jf.routes.get('/themes', function(req, res) {
+jf.routes.get('/themes', function (req, res) {
     return res.json(getThemes());
 });
 
-// Get a user's selected theme
-jf.routes.get('/selection/:user', function(req, res) {
+jf.routes.get('/selection/:user', function (req, res) {
     var userId = req.pathParams['user'];
-    var themeId = jf.userStore.get(userId, 'selected_theme') || '';
-    return res.json({ theme: themeId });
+    var data = jf.userStore.get(userId, 'theme_config_v2');
+    if (!data) {
+        jf.log.debug('No saved config for user ' + userId + ', returning defaults');
+        return res.json({ theme: '', vars: {}, addons: [] });
+    }
+    try {
+        var parsed = JSON.parse(data);
+        var result = {
+            theme: parsed.theme || '',
+            vars: parsed.vars || {},
+            addons: parsed.addons || []
+        };
+        jf.log.debug('GET config for ' + userId + ': theme=' + result.theme + ' vars=' + JSON.stringify(result.vars) + ' addons=' + JSON.stringify(result.addons));
+        return res.json(result);
+    } catch (e) {
+        jf.log.warn('Failed to parse stored config for user ' + userId + ': ' + e + ' raw: ' + data);
+        return res.json({ theme: '', vars: {}, addons: [] });
+    }
 });
 
-// Save a user's selected theme
-jf.routes.post('/selection/:user', function(req, res) {
+jf.routes.post('/selection/:user', function (req, res) {
     var userId = req.pathParams['user'];
-    var body = req.body || {};
-    var themeId = body.theme ? String(body.theme) : '';
-    
-    jf.userStore.set(userId, 'selected_theme', themeId);
-    return res.json({ ok: true, theme: themeId });
+    var body = req.body;
+    if (!body) {
+        return res.status(400).json({ error: 'Missing config' });
+    }
+
+    var themeId = String(body.theme || '');
+
+    var parsed = null;
+    try {
+        parsed = JSON.parse(req.rawBody || '{}');
+    } catch (e) {
+        jf.log.warn('Failed to parse rawBody: ' + e);
+        return res.status(400).json({ error: 'Invalid JSON body' });
+    }
+
+    var vars = parsed.vars || {};
+    var addons = parsed.addons || [];
+
+    if (!Array.isArray(addons)) {
+        addons = [];
+    }
+
+    var safeVars = {};
+    var varKeys = Object.keys(vars);
+    for (var i = 0; i < varKeys.length; i++) {
+        var k = varKeys[i];
+        safeVars[k] = String(vars[k]);
+    }
+
+    var configToSave = {
+        theme: themeId,
+        vars: safeVars,
+        addons: addons
+    };
+
+    jf.userStore.set(userId, 'theme_config_v2', JSON.stringify(configToSave));
+    jf.log.debug('Saved theme config for user ' + userId + ': theme=' + themeId + ' vars=' + varKeys.length + ' addons=' + addons.length);
+    return res.json({ ok: true });
 });

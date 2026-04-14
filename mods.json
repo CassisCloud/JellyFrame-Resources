@@ -1,5 +1,18 @@
 [
   {
+    "id": "screensaver",
+    "name": "Screensaver",
+    "author": "grimmdev",
+    "description": "After 30 minutes of idle, one of four screensaver designs, with user chosen styles.",
+    "version": "1.0.0",
+    "jellyfin": "10.10+",
+    "tags": ["ui", "idle", "theme"],
+    "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/screensaver.png",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/screensaver-client.min.js",
+    "permissions": [],
+    "vars": []
+  },
+  {
     "id": "responsive-header-right-menu",
     "name": "Responsive Header Right Menu",
     "author": "grimmdev",

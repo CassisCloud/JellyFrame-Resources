@@ -714,7 +714,7 @@
     "name": "Active Session Counter Icon",
     "author": "grimmdev",
     "description": "Shows the active content watching sessions.",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "jellyfin": "10.11+",
     "tags": [
       "ui",
@@ -723,7 +723,7 @@
     "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/Custom-Mods@main/ActiveSessionCounterIcon/thumbnail.png",
     "sourceUrl": "https://github.com/Jellyfin-PG/Custom-Mods/tree/main/ActiveSessionCounterIcon",
     "cssUrl": "",
-    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/session-counter-client.min.js",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/session-counter-client.v2.min.js",
     "serverJs": "",
     "permissions": [
       "jellyfin.read"

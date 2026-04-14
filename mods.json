@@ -8,7 +8,7 @@
     "jellyfin": "10.10+",
     "tags": ["ui", "videos"],
     "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/audio-studio.png",
-    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/audio-studio-client.min.js",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/audio-studio-client.v2.min.js",
     "permissions": [],
     "vars": []
   },

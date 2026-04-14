@@ -1,55 +1,24 @@
 [
   {
-    "id": "jelly-rpg",
-    "name": "Jelly RPG",
+    "id": "parental-lock",
+    "name": "Parental Lock",
     "author": "grimmdev",
-    "description": "Massive RPG progression with customizable XP rates, 60+ achievements, and 30+ daily quests.",
-    "version": "6.0.0",
+    "description": "Securely lock profiles with a 4-digit PIN and choose a maximum allowed rating tier.",
+    "version": "1.1.0",
     "jellyfin": "10.10+",
-    "tags": ["ui", "server", "gamification", "rpg"],
-    "jsUrl": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/jelly-rpg-client.v2.js",
-    "serverJs": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/jelly-rpg-server.v2.js",
-    "permissions": ["jellyfin.read", "store"],
-    "vars": [
-      {
-        "key": "XP_COLOR",
-        "name": "Theme Color",
-        "type": "color",
-        "default": "#8a2be2",
-        "allowGradient": true
-      },
-      {
-        "key": "LEVEL_UP_COLOR",
-        "name": "Level Up Flash Color",
-        "type": "color",
-        "default": "#ffd700"
-      },
-      {
-        "key": "GLOBAL_XP_MULTIPLIER",
-        "name": "Global XP Multiplier",
-        "description": "Scale all XP gained globally (e.g., 1.5 for 50% more XP).",
-        "type": "text",
-        "default": "1.0"
-      },
-      {
-        "key": "BASE_XP_MOVIE",
-        "name": "Base XP (Movie)",
-        "type": "number",
-        "default": "150"
-      },
-      {
-        "key": "BASE_XP_EPISODE",
-        "name": "Base XP (Episode)",
-        "type": "number",
-        "default": "50"
-      },
-      {
-        "key": "DAILY_QUEST_COUNT",
-        "name": "Daily Quest Count",
-        "description": "How many quests a user receives each day.",
-        "type": "number",
-        "default": "3"
-      }
-    ]
+    "tags": ["ui", "server", "parental"],
+    "previewUrl": "",
+    "sourceUrl": "",
+    "cssUrl": null,
+    "jsUrl": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/parental-lock-client.js",
+    "serverJs": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/parental-lock-server.js",
+    "permissions": [
+      "store",
+      "jellyfin.read",
+      "jellyfin.write",
+      "jellyfin.admin"
+    ],
+    "requires": [],
+    "vars": []
   }
 ]

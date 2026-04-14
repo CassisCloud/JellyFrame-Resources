@@ -1,13 +1,14 @@
-// Runs in the browser. Renders the interactive tabs, tooltips, and prestige mechanic.
+// Runs in the browser. Renders the interactive tabs, tooltips, prestige mechanic, and The Tavern (Leaderboards).
 // Strictly ES5 compliant.
 
-(function() {
+(function () {
     var MOD_ID = 'jelly-rpg';
     var charData = null;
+    var leaderboardData = null;
     var animTimer = null;
     var toastTimer = null;
-    var activeTab = 'character';
-    
+    var activeTab = 'character'; // 'character', 'bounties', 'trophies', or 'tavern'
+
     var ACHIEVEMENTS = [
         { id: 'm10', type: 'movies', req: 10, title: '🍿 Popcorn Initiate', xp: 500 },
         { id: 'm50', type: 'movies', req: 50, title: '🎞️ Silver Screen Fan', xp: 1500 },
@@ -56,7 +57,7 @@
         if (document.getElementById('rpg-css')) return;
         var s = document.createElement('style');
         s.id = 'rpg-css';
-        s.innerHTML = 
+        s.innerHTML =
             '.rpg-nav-btn { position: relative; display: flex; align-items: center; justify-content: center; background: transparent; margin-right: 15px; cursor: pointer; transition: transform 0.2s; user-select: none; width: 42px; height: 42px; } ' +
             '.rpg-nav-btn:hover { transform: scale(1.05); } ' +
             '.rpg-nav-btn.pulse { transform: scale(1.15); } ' +
@@ -67,74 +68,87 @@
             '.rpg-nav-btn.pulse .rpg-hdr-lvl { text-shadow: 0 0 12px {{XP_COLOR}}; } ' +
             '.rpg-xp-float { position: absolute; top: -10px; color: {{XP_COLOR}}; font-weight: bold; font-size: 0.8rem; pointer-events: none; opacity: 1; transform: translateY(-20px); transition: all 1.5s ease-out; text-shadow: 0 1px 3px rgba(0,0,0,0.8); z-index: 100; white-space: nowrap; } ' +
             '.rpg-xp-float.fade { opacity: 0; transform: translateY(-40px); } ' +
-            
+
             '.rpg-toast-overlay { position: fixed; top: 20%; left: 50%; transform: translate(-50%, -50%) scale(0.5); opacity: 0; pointer-events: none; z-index: 999999; text-align: center; transition: all 0.5s; } ' +
             '.rpg-toast-overlay.show { opacity: 1; transform: translate(-50%, -50%) scale(1); } ' +
             '.rpg-toast-text { font-size: 4rem; font-weight: 900; color: {{LEVEL_UP_COLOR}}; text-transform: uppercase; text-shadow: 0 5px 20px rgba(0,0,0,0.8), 0 0 30px {{LEVEL_UP_COLOR}}; margin: 0; } ' +
             '.rpg-toast-sub { font-size: 1.5rem; color: #fff; background: rgba(0,0,0,0.8); padding: 5px 20px; border-radius: 20px; display: inline-block; margin-top: 10px; border: 2px solid {{LEVEL_UP_COLOR}}; } ' +
-            
+
             '.rpg-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 99999; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; font-family: monospace; } ' +
             '.rpg-modal.active { opacity: 1; pointer-events: auto; } ' +
-            '.rpg-sheet { background-color: #111; background-position: center; background-repeat: repeat; width: 480px; border-radius: 8px; padding: 1.5rem; border: 2px solid {{XP_COLOR}}; box-shadow: 0 0 30px rgba(0,0,0,0.7); position: relative; transform: scale(0.95); transition: transform 0.2s; color: #fff; display: flex; flex-direction: column; max-height: 85vh; } ' +
+            '.rpg-sheet { background-color: #111; background-position: center; background-repeat: repeat; width: 500px; border-radius: 8px; padding: 1.5rem; border: 2px solid {{XP_COLOR}}; box-shadow: 0 0 30px rgba(0,0,0,0.7); position: relative; transform: scale(0.95); transition: transform 0.2s; color: #fff; display: flex; flex-direction: column; max-height: 85vh; overflow: hidden; } ' +
             '.rpg-modal.active .rpg-sheet { transform: scale(1); } ' +
-            '.rpg-close { position: absolute; top: 10px; right: 10px; background: none; border: none; color: #666; cursor: pointer; padding: 5px; } ' +
+            '.rpg-close { position: absolute; top: 10px; right: 10px; background: none; border: none; color: #666; cursor: pointer; padding: 5px; z-index: 10; } ' +
             '.rpg-close:hover { color: {{XP_COLOR}}; } ' +
-            
-            '.rpg-tabs { display: flex; border-bottom: 1px solid #333; margin-bottom: 1.5rem; } ' +
-            '.rpg-tab-btn { flex: 1; background: transparent; border: none; color: #888; padding: 10px 5px; cursor: pointer; font-family: inherit; font-size: 0.95rem; font-weight: bold; border-bottom: 3px solid transparent; transition: all 0.2s; } ' +
+
+            '.rpg-tabs { display: flex; border-bottom: 1px solid #333; margin-bottom: 1.5rem; gap: 4px; flex-shrink: 0; } ' +
+            '.rpg-tab-btn { flex: 1; background: transparent; border: none; color: #888; padding: 10px 2px; cursor: pointer; font-family: inherit; font-size: 0.9rem; font-weight: bold; border-bottom: 3px solid transparent; transition: all 0.2s; white-space: nowrap; } ' +
             '.rpg-tab-btn:hover { color: #fff; } ' +
             '.rpg-tab-btn.active { color: {{XP_COLOR}}; border-bottom-color: {{XP_COLOR}}; } ' +
-            '.rpg-tab-content { overflow-y: auto; padding-right: 5px; flex: 1; } ' +
+            '.rpg-tab-content { overflow-y: auto; padding-right: 5px; flex: 1; min-height: 0; } ' +
             '.rpg-tab-content::-webkit-scrollbar { width: 6px; } ' +
             '.rpg-tab-content::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; } ' +
-            
-            '.rpg-header { display: flex; align-items: center; margin-bottom: 1rem; position: relative; } ' +
+
+            '.rpg-header { display: flex; align-items: center; margin-bottom: 1rem; position: relative; flex-shrink: 0; } ' +
             '.rpg-portrait { width: 70px; height: 70px; border-radius: 4px; border: 2px solid #555; background-size: cover; margin-right: 1.2rem; } ' +
             '.rpg-name { font-size: 1.4rem; font-weight: bold; text-transform: uppercase; margin: 0 0 2px 0; color: {{XP_COLOR}}; display: flex; align-items: center; gap: 8px; } ' +
             '.rpg-prestige-badge { background: linear-gradient(45deg, #ffd700, #ff8c00); color: #000; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: 900; } ' +
             '.rpg-sub { font-size: 0.85rem; color: #aaa; margin-bottom: 6px; } ' +
             '.rpg-realm { display: inline-block; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; color: #ddd; } ' +
             '.rpg-realm::before { content: "Realm: "; color: #888; } ' +
-            
-            '.rpg-pts-banner { background: rgba(255, 215, 0, 0.15); color: #ffd700; padding: 10px; text-align: center; border-radius: 4px; margin-bottom: 1rem; font-weight: bold; border: 1px dashed #ffd700; animation: rpgPulse 2s infinite; } ' +
+
+            '.rpg-pts-banner { background: rgba(255, 215, 0, 0.15); color: #ffd700; padding: 10px; text-align: center; border-radius: 4px; margin-bottom: 1rem; font-weight: bold; border: 1px dashed #ffd700; animation: rpgPulse 2s infinite; flex-shrink: 0; } ' +
             '@keyframes rpgPulse { 0% { opacity: 0.8; } 50% { opacity: 1; } 100% { opacity: 0.8; } } ' +
-            
-            '.rpg-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 1rem; } ' +
+
+            '.rpg-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 1rem; flex-shrink: 0; } ' +
             '.rpg-stat-row { display: flex; align-items: center; } ' +
             '.rpg-stat-lbl { width: 65px; font-weight: bold; color: #888; display: flex; align-items: center; gap: 4px; cursor: help; } ' +
             '.rpg-stat-val { width: 25px; text-align: right; margin-right: 8px; font-weight: bold; color: #fff; } ' +
             '.rpg-stat-bar-bg { flex: 1; height: 8px; background: #222; border: 1px solid #444; position: relative; } ' +
             '.rpg-stat-bar-fill { height: 100%; background: #555; transition: width 0.3s; } ' +
-            
+
             '.rpg-stat-row.str .rpg-stat-bar-fill { background: #e74c3c; } ' +
             '.rpg-stat-row.int .rpg-stat-bar-fill { background: #3498db; } ' +
             '.rpg-stat-row.cha .rpg-stat-bar-fill { background: #f1c40f; } ' +
             '.rpg-stat-row.dex .rpg-stat-bar-fill { background: #2ecc71; } ' +
             '.rpg-stat-row.wis .rpg-stat-bar-fill { background: #9b59b6; } ' +
             '.rpg-stat-row.con .rpg-stat-bar-fill { background: #e67e22; } ' +
-            
+
             '.rpg-add-btn { background: #333; color: #fff; border: 1px solid #666; border-radius: 4px; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; margin-left: 8px; cursor: pointer; font-weight: bold; line-height: 1; transition: all 0.2s; } ' +
             '.rpg-add-btn:hover { background: #ffd700; color: #000; border-color: #ffd700; transform: scale(1.1); } ' +
-            
-            '.rpg-prestige-btn { width: 100%; background: linear-gradient(to right, #ffd700, #ff8c00); color: #000; border: none; padding: 10px; border-radius: 4px; font-weight: 900; font-size: 1.1rem; cursor: pointer; margin-top: 10px; text-transform: uppercase; letter-spacing: 2px; transition: transform 0.2s; } ' +
+
+            '.rpg-prestige-btn { width: 100%; background: linear-gradient(to right, #ffd700, #ff8c00); color: #000; border: none; padding: 10px; border-radius: 4px; font-weight: 900; font-size: 1.1rem; cursor: pointer; margin-top: 10px; text-transform: uppercase; letter-spacing: 2px; transition: transform 0.2s; flex-shrink: 0; } ' +
             '.rpg-prestige-btn:hover { transform: scale(1.02); } ' +
-            
-            '.rpg-banner-select { width: 100%; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #444; padding: 8px; border-radius: 4px; margin-top: 10px; margin-bottom: 15px; font-family: monospace; outline: none; } ' +
-            
-            '.rpg-footer-bar { width: 100%; height: 12px; background: #222; border: 1px solid #444; position: relative; margin-top: 5px; border-radius: 6px; overflow: hidden; } ' +
+
+            '.rpg-banner-select { width: 100%; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #444; padding: 8px; border-radius: 4px; margin-top: 10px; margin-bottom: 15px; font-family: monospace; outline: none; flex-shrink: 0; } ' +
+
+            '.rpg-footer-bar { width: 100%; height: 12px; background: #222; border: 1px solid #444; position: relative; margin-top: 5px; border-radius: 6px; overflow: hidden; flex-shrink: 0; } ' +
             '.rpg-footer-fill { height: 100%; background: {{XP_COLOR}}; } ' +
             '.rpg-footer-txt { position: absolute; top: -16px; right: 0; font-size: 0.75rem; color: #aaa; } ' +
-            
-            '.rpg-ach-card { background: rgba(0,0,0,0.6); padding: 10px; border-radius: 6px; margin-bottom: 10px; border-left: 3px solid #444; transition: all 0.2s; } ' +
+
+            '.rpg-ach-card { background: rgba(0,0,0,0.6); padding: 10px; border-radius: 6px; margin-bottom: 10px; border-left: 3px solid #444; transition: all 0.2s; flex-shrink: 0; } ' +
             '.rpg-ach-card.unlocked { border-left-color: #ffd700; background: rgba(255,215,0,0.08); box-shadow: 0 0 10px rgba(255,215,0,0.1); } ' +
             '.rpg-ach-header { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; align-items: center; } ' +
             '.rpg-ach-title { font-weight: bold; color: #ccc; } ' +
             '.rpg-ach-card.unlocked .rpg-ach-title { color: #fff; } ' +
             '.rpg-ach-xp { color: #ffd700; font-weight: bold; font-size: 0.8rem; background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; } ' +
-            '.rpg-ach-prog { font-size: 0.75rem; color: #888; text-align: right; margin-top: 4px; }';
-            
+            '.rpg-ach-prog { font-size: 0.75rem; color: #888; text-align: right; margin-top: 4px; } ' +
+
+            '.rpg-realm-row { margin-bottom: 12px; background: rgba(0,0,0,0.4); padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; } ' +
+            '.rpg-realm-row-header { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px; } ' +
+            '.rpg-realm-bar-bg { width: 100%; height: 6px; background: #222; border-radius: 3px; overflow: hidden; } ' +
+            '.rpg-player-row { display: flex; align-items: center; padding: 10px; background: rgba(0,0,0,0.5); margin-bottom: 8px; border-radius: 6px; border-left: 3px solid #555; flex-shrink: 0; } ' +
+            '.rpg-player-row:hover { background: rgba(255,255,255,0.05); } ' +
+            '.rpg-player-rank { font-weight: 900; font-size: 1.1rem; width: 35px; color: #888; } ' +
+            '.rpg-player-row.rank-1 .rpg-player-rank { color: #ffd700; } ' +
+            '.rpg-player-row.rank-2 .rpg-player-rank { color: #c0c0c0; } ' +
+            '.rpg-player-row.rank-3 .rpg-player-rank { color: #cd7f32; } ' +
+            '.rpg-player-row.rank-1 { border-left-color: #ffd700; } ' +
+            '.rpg-player-row.rank-2 { border-left-color: #c0c0c0; } ' +
+            '.rpg-player-row.rank-3 { border-left-color: #cd7f32; } ';
+
         document.head.appendChild(s);
-        
+
         var toast = document.createElement('div');
         toast.id = 'rpg-level-toast';
         toast.className = 'rpg-toast-overlay';
@@ -150,10 +164,10 @@
         var btn = document.createElement('div');
         btn.id = 'rpg-nav-btn';
         btn.className = 'rpg-nav-btn';
-        btn.innerHTML = 
+        btn.innerHTML =
             '<svg viewBox="0 0 36 36" class="rpg-ring-svg">' +
-                '<circle class="rpg-ring-bg" cx="18" cy="18" r="15.915"></circle>' +
-                '<circle class="rpg-ring-fill" id="rpg-hdr-bar" cx="18" cy="18" r="15.915" style="stroke-dasharray: 0, 100;"></circle>' +
+            '<circle class="rpg-ring-bg" cx="18" cy="18" r="15.915"></circle>' +
+            '<circle class="rpg-ring-fill" id="rpg-hdr-bar" cx="18" cy="18" r="15.915" style="stroke-dasharray: 0, 100;"></circle>' +
             '</svg>' +
             '<div class="rpg-hdr-lvl" id="rpg-hdr-lvl">--</div>';
 
@@ -168,68 +182,91 @@
         var userId = window.ApiClient.getCurrentUserId();
         if (!userId) return;
         fetch('/JellyFrame/mods/' + MOD_ID + '/api/sheet?userId=' + userId)
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
                 charData = data;
                 var btn = document.getElementById('rpg-nav-btn');
                 if (btn) btn.setAttribute('title', data.pClass + ' • ' + data.realm);
                 updateHeaderUI(data.level, data.progress);
                 if (document.getElementById('rpg-modal') && document.getElementById('rpg-modal').classList.contains('active')) {
-                    renderTabContent();
+                    if (activeTab === 'character' || activeTab === 'bounties' || activeTab === 'trophies') {
+                        renderTabContent();
+                    }
                 }
-            }).catch(function(e) { console.error('RPG fetch failed', e); });
+            }).catch(function (e) { console.error('RPG fetch failed', e); });
     }
 
-    window.rpgSwitchTab = function(tab) {
+    function fetchLeaderboard() {
+        fetch('/JellyFrame/mods/' + MOD_ID + '/api/leaderboard')
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                leaderboardData = data;
+                if (activeTab === 'tavern') renderTabContent();
+            }).catch(function (e) { console.error('RPG leaderboard fetch failed', e); });
+    }
+
+    window.rpgSwitchTab = function (tab) {
         activeTab = tab;
-        document.getElementById('rpg-tab-char').classList.toggle('active', tab === 'character');
-        document.getElementById('rpg-tab-bounties').classList.toggle('active', tab === 'bounties');
-        document.getElementById('rpg-tab-trophies').classList.toggle('active', tab === 'trophies');
+        var tabs = ['character', 'bounties', 'trophies', 'tavern'];
+        var tabIds = ['rpg-tab-char', 'rpg-tab-bounties', 'rpg-tab-trophies', 'rpg-tab-tavern'];
+
+        for (var i = 0; i < tabs.length; i++) {
+            var el = document.getElementById(tabIds[i]);
+            if (el) {
+                if (tabs[i] === tab) el.classList.add('active');
+                else el.classList.remove('active');
+            }
+        }
+
+        if (tab === 'tavern' && !leaderboardData) {
+            fetchLeaderboard();
+        }
+
         renderTabContent();
     };
 
-    window.rpgAllocatePoint = function(stat) {
+    window.rpgAllocatePoint = function (stat) {
         var userId = window.ApiClient.getCurrentUserId();
         if (!userId) return;
         fetch('/JellyFrame/mods/' + MOD_ID + '/api/allocate', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: userId, stat: stat })
-        }).then(function(res) { return res.json(); }).then(function(res) {
+        }).then(function (res) { return res.json(); }).then(function (res) {
             if (res.ok) fetchSheet();
         });
     };
 
-    window.rpgPrestige = function() {
+    window.rpgPrestige = function () {
         if (!confirm("Are you sure you want to Prestige?\n\nThis resets your Level and Stats to 1, but grants a permanent +10% XP Multiplier per rank and a prestigious badge next to your name. Trophies and History are kept.")) return;
         var userId = window.ApiClient.getCurrentUserId();
         fetch('/JellyFrame/mods/' + MOD_ID + '/api/prestige', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: userId })
-        }).then(function(res) { return res.json(); }).then(function(res) {
+        }).then(function (res) { return res.json(); }).then(function (res) {
             if (res.ok) { fetchSheet(); alert("You have Prestiged! Glory awaits."); }
         });
     };
 
-    window.rpgEquipBanner = function(bannerId) {
+    window.rpgEquipBanner = function (bannerId) {
         var userId = window.ApiClient.getCurrentUserId();
         fetch('/JellyFrame/mods/' + MOD_ID + '/api/equip_banner', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: userId, bannerId: bannerId })
-        }).then(function(res) { return res.json(); }).then(function(res) {
+        }).then(function (res) { return res.json(); }).then(function (res) {
             if (res.ok) fetchSheet();
         });
     };
 
     if (window.ApiClient) {
-        window.ApiClient.addEventListener('message', function(e, msg) {
+        window.ApiClient.addEventListener('message', function (e, msg) {
             if (msg.MessageType === 'JellyFrameNotification' && msg.Data && msg.Data.type === 'JellyRPG_Update') {
                 var d = msg.Data;
-                fetchSheet(); 
+                fetchSheet();
                 var btn = document.getElementById('rpg-nav-btn');
-                
+
                 if (d.data.isLevelUp) {
                     var toast = document.getElementById('rpg-level-toast');
                     if (toast) {
                         toast.classList.add('show');
                         if (toastTimer) clearTimeout(toastTimer);
-                        toastTimer = setTimeout(function() { toast.classList.remove('show'); }, 4000);
+                        toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 4000);
                     }
                 }
                 if (btn) {
@@ -238,12 +275,12 @@
                     floater.className = 'rpg-xp-float';
                     floater.innerText = d.body;
                     btn.appendChild(floater);
-                    void floater.offsetWidth; // Reflow
+                    void floater.offsetWidth;
                     floater.classList.add('fade');
-                    setTimeout(function() { if (floater.parentNode) floater.parentNode.removeChild(floater); }, 1500);
+                    setTimeout(function () { if (floater.parentNode) floater.parentNode.removeChild(floater); }, 1500);
                     updateHeaderUI(d.data.level, d.data.progress);
                     if (animTimer) clearTimeout(animTimer);
-                    animTimer = setTimeout(function() { btn.classList.remove('pulse'); }, 5000);
+                    animTimer = setTimeout(function () { btn.classList.remove('pulse'); }, 5000);
                 }
             }
         });
@@ -262,21 +299,30 @@
             modal = document.createElement('div');
             modal.id = 'rpg-modal';
             modal.className = 'rpg-modal';
-            modal.innerHTML = 
+
+            var tabsHtml =
+                '<button id="rpg-tab-char" class="rpg-tab-btn ' + (activeTab === 'character' ? 'active' : '') + '" onclick="window.rpgSwitchTab(\'character\')">Sheet</button>' +
+                '<button id="rpg-tab-bounties" class="rpg-tab-btn ' + (activeTab === 'bounties' ? 'active' : '') + '" onclick="window.rpgSwitchTab(\'bounties\')">Bounties</button>' +
+                '<button id="rpg-tab-trophies" class="rpg-tab-btn ' + (activeTab === 'trophies' ? 'active' : '') + '" onclick="window.rpgSwitchTab(\'trophies\')">Trophies</button>' +
+                '<button id="rpg-tab-tavern" class="rpg-tab-btn ' + (activeTab === 'tavern' ? 'active' : '') + '" onclick="window.rpgSwitchTab(\'tavern\')">Tavern</button>';
+
+            modal.innerHTML =
                 '<div class="rpg-sheet" onclick="event.stopPropagation()">' +
-                    '<button class="rpg-close material-icons" onclick="document.getElementById(\'rpg-modal\').classList.remove(\'active\')">close</button>' +
-                    '<div class="rpg-tabs">' +
-                        '<button id="rpg-tab-char" class="rpg-tab-btn active" onclick="window.rpgSwitchTab(\'character\')">Character</button>' +
-                        '<button id="rpg-tab-bounties" class="rpg-tab-btn" onclick="window.rpgSwitchTab(\'bounties\')">Bounties</button>' +
-                        '<button id="rpg-tab-trophies" class="rpg-tab-btn" onclick="window.rpgSwitchTab(\'trophies\')">Trophies</button>' +
-                    '</div>' +
-                    '<div id="rpg-tab-content" class="rpg-tab-content"></div>' +
+                '<button class="rpg-close material-icons" onclick="document.getElementById(\'rpg-modal\').classList.remove(\'active\')">close</button>' +
+                '<div class="rpg-tabs">' + tabsHtml + '</div>' +
+                '<div id="rpg-tab-content" class="rpg-tab-content"></div>' +
                 '</div>';
-            modal.addEventListener('click', function() { modal.classList.remove('active'); });
+            modal.addEventListener('click', function () { modal.classList.remove('active'); });
             document.body.appendChild(modal);
+        } else {
+            window.rpgSwitchTab(activeTab);
+        }
+
+        if (activeTab === 'tavern' && !leaderboardData) {
+            fetchLeaderboard();
         }
         fetchSheet();
-        setTimeout(renderTabContent, 100); 
+        setTimeout(renderTabContent, 100);
         modal.classList.add('active');
     }
 
@@ -284,15 +330,15 @@
         var pct = maxVal > 0 ? (val / maxVal) * 100 : 0;
         var addBtn = hasPts ? '<button class="rpg-add-btn" title="Allocate Point" onclick="window.rpgAllocatePoint(\'' + key + '\')">+</button>' : '';
         return '<div class="rpg-stat-row ' + cssClass + '">' +
-                   '<div class="rpg-stat-lbl" title="' + tooltip + '"><span>' + icon + '</span> ' + label + '</div>' +
-                   '<div class="rpg-stat-val">' + val + '</div>' +
-                   '<div class="rpg-stat-bar-bg"><div class="rpg-stat-bar-fill" style="width: ' + pct + '%"></div></div>' +
-                   addBtn +
-               '</div>';
+            '<div class="rpg-stat-lbl" title="' + tooltip + '"><span>' + icon + '</span> ' + label + '</div>' +
+            '<div class="rpg-stat-val">' + val + '</div>' +
+            '<div class="rpg-stat-bar-bg"><div class="rpg-stat-bar-fill" style="width: ' + pct + '%"></div></div>' +
+            addBtn +
+            '</div>';
     }
 
     function romanize(num) {
-        var lookup = {M:1000,CM:900,D:500,CD:400,C:100,XC:90,L:50,XL:40,X:10,IX:9,V:5,IV:4,I:1}, roman = '', i;
+        var lookup = { M: 1000, CM: 900, D: 500, CD: 400, C: 100, XC: 90, L: 50, XL: 40, X: 10, IX: 9, V: 5, IV: 4, I: 1 }, roman = '', i;
         for (i in lookup) { while (num >= lookup[i]) { roman += i; num -= lookup[i]; } }
         return roman;
     }
@@ -316,7 +362,7 @@
     function getAchievementProgress(ach, history, realmScores) {
         var h = history || {};
         var r = realmScores || {};
-        switch(ach.type) {
+        switch (ach.type) {
             case 'movies': return h.movies || 0;
             case 'episodes': return h.episodes || 0;
             case 'quests': return h.questsDone || 0;
@@ -332,70 +378,72 @@
 
     function renderTabContent() {
         var content = document.getElementById('rpg-tab-content');
-        if (!charData) return;
+        if (!charData && activeTab !== 'tavern') return;
         var d = charData;
-        
+
         var sheetEl = document.querySelector('.rpg-sheet');
-        if (sheetEl) sheetEl.style.backgroundImage = BANNER_SVGS[d.equippedBanner] || 'none';
+        if (sheetEl && d) sheetEl.style.backgroundImage = BANNER_SVGS[d.equippedBanner] || 'none';
 
         if (activeTab === 'character') {
             var userId = window.ApiClient.getCurrentUserId();
             var imgUrl = window.ApiClient.getUserImageUrl(userId, { type: 'Primary' });
-            var maxStat = Math.max(d.stats.str, d.stats.int, d.stats.cha, d.stats.dex, d.stats.wis, d.stats.con, 10); 
+            var maxStat = Math.max(d.stats.str, d.stats.int, d.stats.cha, d.stats.dex, d.stats.wis, d.stats.con, 10);
             var hasPts = d.availablePoints > 0;
             var ptsBanner = hasPts ? '<div class="rpg-pts-banner">UNSPENT STAT POINTS: ' + d.availablePoints + '</div>' : '';
-            var presBadge = d.prestige > 0 ? '<span class="rpg-prestige-badge" title="Prestige Rank ' + d.prestige + ' (+' + (d.prestige*10) + '% XP)">' + romanize(d.prestige) + '</span>' : '';
+            var presBadge = d.prestige > 0 ? '<span class="rpg-prestige-badge" title="Prestige Rank ' + d.prestige + ' (+' + (d.prestige * 10) + '% XP)">' + romanize(d.prestige) + '</span>' : '';
 
-            var html = 
+            var realmBonusText = (d.realmMultiplier && d.realmMultiplier > 1.0) ? ' <span style="color:#ffd700; font-weight:bold;">(+' + Math.round((d.realmMultiplier - 1) * 100) + '% XP)</span>' : '';
+
+            var html =
                 '<div class="rpg-header">' +
-                    '<div class="rpg-portrait" style="background-image: url(\'' + imgUrl + '\')"></div>' +
-                    '<div>' +
-                        '<h2 class="rpg-name">Player ' + presBadge + '</h2>' +
-                        '<div class="rpg-sub">LEVEL ' + d.level + ' ' + d.pClass + '</div>' +
-                        '<div class="rpg-realm">' + d.realm + '</div>' +
-                    '</div>' +
+                '<div class="rpg-portrait" style="background-image: url(\'' + imgUrl + '\')"></div>' +
+                '<div>' +
+                '<h2 class="rpg-name">Player ' + presBadge + '</h2>' +
+                '<div class="rpg-sub">LEVEL ' + d.level + ' ' + d.pClass + '</div>' +
+                '<div class="rpg-realm" title="Current Realm War Bonus">' + d.realm + realmBonusText + '</div>' +
+                '</div>' +
                 '</div>' +
                 ptsBanner +
                 '<div class="rpg-stats">' +
-                    getStatBarHtml('⚔️', 'STR', 'Governs Action, Adventure, and War', 'str', d.stats.str, maxStat, 'str', hasPts) +
-                    getStatBarHtml('🏹', 'DEX', 'Governs Animation, Family, and Kids', 'dex', d.stats.dex, maxStat, 'dex', hasPts) +
-                    getStatBarHtml('🧠', 'INT', 'Governs Sci-Fi, Mystery, and Documentary', 'int', d.stats.int, maxStat, 'int', hasPts) +
-                    getStatBarHtml('📜', 'WIS', 'Governs Drama, History, and Fantasy', 'wis', d.stats.wis, maxStat, 'wis', hasPts) +
-                    getStatBarHtml('🎭', 'CHA', 'Governs Comedy, Romance, and Music', 'cha', d.stats.cha, maxStat, 'cha', hasPts) +
-                    getStatBarHtml('🛡️', 'CON', 'Governs Horror and Suspense', 'con', d.stats.con, maxStat, 'con', hasPts) +
+                getStatBarHtml('⚔️', 'STR', 'Governs Action, Adventure, and War', 'str', d.stats.str, maxStat, 'str', hasPts) +
+                getStatBarHtml('🏹', 'DEX', 'Governs Animation, Family, and Kids', 'dex', d.stats.dex, maxStat, 'dex', hasPts) +
+                getStatBarHtml('🧠', 'INT', 'Governs Sci-Fi, Mystery, and Documentary', 'int', d.stats.int, maxStat, 'int', hasPts) +
+                getStatBarHtml('📜', 'WIS', 'Governs Drama, History, and Fantasy', 'wis', d.stats.wis, maxStat, 'wis', hasPts) +
+                getStatBarHtml('🎭', 'CHA', 'Governs Comedy, Romance, and Music', 'cha', d.stats.cha, maxStat, 'cha', hasPts) +
+                getStatBarHtml('🛡️', 'CON', 'Governs Horror and Suspense', 'con', d.stats.con, maxStat, 'con', hasPts) +
                 '</div>' +
                 '<div style="margin-top: 1rem;">' +
-                    '<div style="font-weight:bold; color:#888; font-size:0.8rem;">EXPERIENCE POINTS</div>' +
-                    '<div class="rpg-footer-bar">' +
-                        '<div class="rpg-footer-fill" style="width: ' + d.progress + '%"></div>' +
-                        '<div class="rpg-footer-txt">' + d.xp.toLocaleString() + ' / ' + d.nextXp.toLocaleString() + '</div>' +
-                    '</div>' +
+                '<div style="font-weight:bold; color:#888; font-size:0.8rem;">EXPERIENCE POINTS</div>' +
+                '<div class="rpg-footer-bar">' +
+                '<div class="rpg-footer-fill" style="width: ' + d.progress + '%"></div>' +
+                '<div class="rpg-footer-txt">' + d.xp.toLocaleString() + ' / ' + d.nextXp.toLocaleString() + '</div>' +
+                '</div>' +
                 '</div>';
-                
+
             html += '<h3 style="margin-top:1.5rem; font-size:0.9rem; color:#888; margin-bottom:0.5rem; text-transform:uppercase;">Profile Banner</h3>';
             html += '<select class="rpg-banner-select" onchange="window.rpgEquipBanner(this.value)">';
-            for(var b=0; b < (d.unlockedBanners || ['default']).length; b++) {
+            for (var b = 0; b < (d.unlockedBanners || ['default']).length; b++) {
                 var bid = d.unlockedBanners[b];
                 var sel = (d.equippedBanner === bid) ? 'selected' : '';
                 html += '<option value="' + bid + '" ' + sel + '>' + (BANNER_NAMES[bid] || bid) + '</option>';
             }
             html += '</select>';
-            
+
             if (d.level >= 100) html += '<button class="rpg-prestige-btn" onclick="window.rpgPrestige()">★ Prestige ★</button>';
 
             content.innerHTML = html;
-        } 
+        }
         else if (activeTab === 'bounties') {
             var html = '<h3 style="margin-top:0; color:{{XP_COLOR}};">Daily Bounties</h3>';
             if (d.quests && d.quests.tasks && d.quests.tasks.length > 0) {
-                for(var i=0; i<d.quests.tasks.length; i++) {
+                for (var i = 0; i < d.quests.tasks.length; i++) {
                     var q = d.quests.tasks[i];
                     var pct = Math.min((q.progress / q.goal) * 100, 100);
                     var color = q.done ? '#2ecc71' : '{{XP_COLOR}}';
                     html += '<div style="background:rgba(0,0,0,0.4); padding:10px; border-radius:6px; margin-bottom:10px; border-left: 3px solid ' + color + ';">' +
-                            '<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>' + q.desc + '</span><span style="color:#aaa;">' + q.progress + '/' + q.goal + '</span></div>' +
-                            '<div style="width:100%; height:4px; background:#222; border-radius:2px; overflow:hidden;"><div style="height:100%; width:' + pct + '%; background:' + color + ';"></div></div>' +
-                            '</div>';
+                        '<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>' + q.desc + ' <span style="color:' + color + '; font-size:0.8rem; margin-left:5px;">(+' + q.xp + ' XP)</span></span><span style="color:#aaa;">' + q.progress + '/' + q.goal + '</span></div>' +
+                        '<div style="width:100%; height:4px; background:#222; border-radius:2px; overflow:hidden;"><div style="height:100%; width:' + pct + '%; background:' + color + ';"></div></div>' +
+                        '</div>';
                 }
             } else {
                 html += '<div style="color:#888; font-size:0.9rem;">No bounties available right now.</div>';
@@ -404,28 +452,83 @@
         }
         else if (activeTab === 'trophies') {
             var html = '<h3 style="margin-top:0; color:{{XP_COLOR}}; margin-bottom:15px;">Trophy Progress</h3>';
-            
+
             for (var i = 0; i < ACHIEVEMENTS.length; i++) {
                 var ach = ACHIEVEMENTS[i];
                 var current = getAchievementProgress(ach, d.history, d.realmScores);
                 var pct = Math.min((current / ach.req) * 100, 100);
-                
                 var isUnlocked = (d.unlockedAchievements && d.unlockedAchievements.indexOf(ach.id) !== -1) || pct >= 100;
-                
                 var cardClass = isUnlocked ? 'rpg-ach-card unlocked' : 'rpg-ach-card';
                 var barColor = isUnlocked ? '#ffd700' : '{{XP_COLOR}}';
-                
+
                 html += '<div class="' + cardClass + '">' +
-                            '<div class="rpg-ach-header">' +
-                                '<span class="rpg-ach-title">' + ach.title + '</span>' +
-                                '<span class="rpg-ach-xp">+' + ach.xp.toLocaleString() + ' XP</span>' +
-                            '</div>' +
-                            '<div style="width:100%; height:4px; background:#222; border-radius:2px; overflow:hidden;">' +
-                                '<div style="height:100%; width:' + pct + '%; background:' + barColor + ';"></div>' +
-                            '</div>' +
-                            '<div class="rpg-ach-prog">' + current.toLocaleString() + ' / ' + ach.req.toLocaleString() + '</div>' +
-                        '</div>';
+                    '<div class="rpg-ach-header">' +
+                    '<span class="rpg-ach-title">' + ach.title + '</span>' +
+                    '<span class="rpg-ach-xp">+' + ach.xp.toLocaleString() + ' XP</span>' +
+                    '</div>' +
+                    '<div style="width:100%; height:4px; background:#222; border-radius:2px; overflow:hidden;">' +
+                    '<div style="height:100%; width:' + pct + '%; background:' + barColor + ';"></div>' +
+                    '</div>' +
+                    '<div class="rpg-ach-prog">' + current.toLocaleString() + ' / ' + ach.req.toLocaleString() + '</div>' +
+                    '</div>';
             }
+            content.innerHTML = html;
+        }
+        else if (activeTab === 'tavern') {
+            if (!leaderboardData) {
+                content.innerHTML = '<div style="text-align:center; padding: 2rem;">Loading Tavern Data...</div>';
+                return;
+            }
+
+            var html = '<h3 style="margin-top:0; color:{{XP_COLOR}};">Realm Territory (War)</h3>';
+            var realms = leaderboardData.realms || [];
+
+            for (var r = 0; r < realms.length; r++) {
+                var rl = realms[r];
+                var rColor = '#888';
+                if (rl.name === 'Realm of Iron') rColor = '#e74c3c';
+                else if (rl.name === 'Arcane Academy') rColor = '#3498db';
+                else if (rl.name === 'Court of Hearts') rColor = '#f1c40f';
+                else if (rl.name === 'Grove of Whispers') rColor = '#2ecc71';
+                else if (rl.name === 'Shadowed Depths') rColor = '#e67e22';
+                else if (rl.name === 'The Woven Dream') rColor = '#9b59b6';
+
+                var rBonus = (r === 0) ? ' <span style="color:#ffd700; font-size:0.75rem; font-weight:bold;" title="1st Place Reward">(+15% XP)</span>' :
+                    (r === 1) ? ' <span style="color:#c0c0c0; font-size:0.75rem; font-weight:bold;" title="2nd Place Reward">(+10% XP)</span>' :
+                        (r === 2) ? ' <span style="color:#cd7f32; font-size:0.75rem; font-weight:bold;" title="3rd Place Reward">(+5% XP)</span>' : '';
+
+                html += '<div class="rpg-realm-row">' +
+                    '<div class="rpg-realm-row-header">' +
+                    '<span style="font-weight:bold;">' + rl.name + rBonus + '</span>' +
+                    '<span style="color:#aaa;">' + Math.round(rl.pct) + '% <span style="font-size:0.75rem;">(' + rl.xp.toLocaleString() + ' XP)</span></span>' +
+                    '</div>' +
+                    '<div class="rpg-realm-bar-bg">' +
+                    '<div style="height:100%; width:' + rl.pct + '%; background:' + rColor + ';"></div>' +
+                    '</div>' +
+                    '</div>';
+            }
+
+            html += '<h3 style="margin-top:1.5rem; color:{{XP_COLOR}};">Server Leaderboard</h3>';
+            var players = leaderboardData.players || [];
+            if (players.length === 0) {
+                html += '<div style="color:#888; font-size:0.9rem;">No heroes have emerged yet.</div>';
+            } else {
+                for (var p = 0; p < players.length; p++) {
+                    var pl = players[p];
+                    var pres = pl.prestige > 0 ? ' <span class="rpg-prestige-badge" style="font-size:0.6rem;" title="Prestige ' + pl.prestige + '">' + romanize(pl.prestige) + '</span>' : '';
+                    var rankClass = (p === 0) ? 'rank-1' : (p === 1) ? 'rank-2' : (p === 2) ? 'rank-3' : '';
+
+                    html += '<div class="rpg-player-row ' + rankClass + '">' +
+                        '<div class="rpg-player-rank">#' + (p + 1) + '</div>' +
+                        '<div style="flex:1;">' +
+                        '<div style="font-weight:bold; color:#fff;">' + pl.name + pres + '</div>' +
+                        '<div style="font-size:0.75rem; color:#aaa;">Level ' + pl.level + ' ' + pl.pClass + ' • ' + pl.realm + '</div>' +
+                        '</div>' +
+                        '<div style="text-align:right; font-size:0.85rem; font-weight:bold; color:#ddd;">' + pl.xp.toLocaleString() + ' XP</div>' +
+                        '</div>';
+                }
+            }
+
             content.innerHTML = html;
         }
     }

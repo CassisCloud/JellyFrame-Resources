@@ -1,5 +1,40 @@
 [
   {
+    "id": "jellyfin-wallpaper",
+    "name": "Jellyfin Wallpaper",
+    "author": "grimmdev",
+    "description": "Live and Static wallpaper for jellyfin, supports vimeo, direct links and also item id from your library to play that movie.",
+    "version": "1.1.0",
+    "jellyfin": "10.9+",
+    "tags": [
+      "ui",
+      "personalization"
+    ],
+    "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jellyfin-wallpaper.png",
+    "sourceUrl": "",
+    "cssUrl": null,
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jellyfin-wallpaper-client.js",
+    "serverJs": null,
+    "permissions": [],
+    "requires": [],
+    "vars": [
+      {
+        "key": "IMAGE_URL",
+        "name": "Static Wallpaper URL",
+        "description": "URL to a static image (jpg, png, webp, etc.) to use as the homepage wallpaper. Leave empty for the built-in default.",
+        "type": "text",
+        "default": ""
+      },
+      {
+        "key": "VIDEO_URL",
+        "name": "Live Wallpaper Source",
+        "description": "Vimeo URL (e.g. https://vimeo.com/439940966), a direct video URL (mp4/webm), or a Jellyfin item ID (32-char hex). Leave empty for the built-in default.",
+        "type": "text",
+        "default": ""
+      }
+    ]
+  },
+  {
     "id": "quick-queue",
     "name": "Watch Queue",
     "author": "grimmdev",

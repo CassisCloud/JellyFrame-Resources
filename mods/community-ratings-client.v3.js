@@ -28,15 +28,18 @@
         });
         resolveUser(function () {
             var widgets = document.querySelectorAll('.cr-detail[data-cr-detail]');
-            for (var i = 0; i < widgets.length; i++) {
-                var itemId = widgets[i].getAttribute('data-cr-detail');
-                if (itemId) {
-                    (function (w, id) {
-                        fetchRating(id, function (data) {
-                            renderDetailWidget(w, id, data);
-                        });
-                    })(widgets[i], itemId);
+            if (widgets.length > 0) {
+                for (var i = 0; i < widgets.length; i++) {
+                    var itemId = widgets[i].getAttribute('data-cr-detail');
+                    if (itemId) {
+                        (function (w, id) {
+                            fetchRating(id, function (data) { renderDetailWidget(w, id, data); });
+                        })(widgets[i], itemId);
+                    }
                 }
+            } else {
+                scanCards();
+                injectDetailWidget();
             }
         });
     }
@@ -47,37 +50,19 @@
             if (resolved) { return; }
             try {
                 if (typeof ApiClient === 'undefined') { return; }
-                var syncId = typeof ApiClient.getCurrentUserId === 'function'
-                    ? ApiClient.getCurrentUserId() : null;
-                if (syncId) {
+                var uid = ApiClient.getCurrentUserId();
+                if (uid) {
                     resolved = true;
-                    currentUserId = syncId;
+                    currentUserId = uid;
+                    console.log('[CR] userId resolved:', uid);
                     cb();
-                    return;
                 }
-                var p = ApiClient.getCurrentUser();
-                if (p && typeof p.then === 'function') {
-                    p.then(function (u) {
-                        if (resolved) { return; }
-                        resolved = true;
-                        if (u && u.Id) { currentUserId = u.Id; }
-                        cb();
-                    }).catch(function () {
-                        if (resolved) { return; }
-                        resolved = true;
-                        cb();
-                    });
-                    return;
-                }
-                if (p && p.Id) { currentUserId = p.Id; }
-                resolved = true;
-                cb();
-            } catch (e) {}
+            } catch(e) {}
         }
-        var interval = setInterval(function () {
+        var interval = setInterval(function() {
             tryResolve();
             if (resolved) { clearInterval(interval); }
-        }, 300);
+        }, 200);
         tryResolve();
     }
 

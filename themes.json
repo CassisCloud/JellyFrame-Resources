@@ -96,7 +96,7 @@
       "ios"
     ],
     "previewUrl": "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/Assets/desktop-main.png",
-    "screenshots" [
+    "screenshots": [
       "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/Assets/desktop-or.png"
     ],
     "sourceUrl": "https://github.com/tromoSM/better-jellyfin-ui",

@@ -17,7 +17,6 @@
     var BTN_ID     = 'jf-lw-toggle';
 
     var liveEnabled = localStorage.getItem('jf_lw_live') !== 'false';
-
     var lastOnHome  = null;
     var playerReady = false;
     var resolvedSrc = null;
@@ -73,24 +72,24 @@
         var s = document.createElement('style');
         s.id = STYLE_ID;
         s.textContent = [
-            '#' + IMAGE_ID + '{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;pointer-events:none;',
+            '#' + IMAGE_ID + '{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:-10;pointer-events:none;',
             'background-size:cover;background-position:center;background-repeat:no-repeat;',
             'opacity:0;transition:opacity 1.4s cubic-bezier(.16,1,.3,1);}',
             '#' + IMAGE_ID + '.lw-visible{opacity:1;}',
 
-            '#' + PLAYER_ID + '{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;pointer-events:none;',
+            '#' + PLAYER_ID + '{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:-10;pointer-events:none;',
             'opacity:0;transition:opacity 1.8s cubic-bezier(.16,1,.3,1);}',
             '#' + PLAYER_ID + '.lw-video{object-fit:cover;}',
             '#' + PLAYER_ID + '.lw-iframe{width:177.78vh;min-width:100vw;height:56.25vw;min-height:100vh;',
             'top:50%;left:50%;transform:translate(-50%,-50%);border:none;}',
             '#' + PLAYER_ID + '.lw-visible{opacity:1;}',
 
-            '#' + OVERLAY_ID + '{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;pointer-events:none;',
+            '#' + OVERLAY_ID + '{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:-9;pointer-events:none;',
             'background:radial-gradient(ellipse at center,rgba(0,0,0,.05) 0%,rgba(0,0,0,.45) 100%);',
             'opacity:0;transition:opacity 1.4s cubic-bezier(.16,1,.3,1);}',
             '#' + OVERLAY_ID + '.lw-visible{opacity:1;}',
 
-            '#' + GRAIN_ID + '{position:fixed;top:-50%;left:-50%;width:200%;height:200%;z-index:2;',
+            '#' + GRAIN_ID + '{position:fixed;top:-50%;left:-50%;width:200%;height:200%;z-index:-8;',
             'pointer-events:none;opacity:.03;animation:lw-grain .12s steps(1) infinite;',
             'background-image:url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E");',
             'background-size:256px 256px;}',
@@ -100,11 +99,14 @@
             '80%{transform:translate(1%,3%)}90%{transform:translate(3%,-1%)}100%{transform:translate(0,0)}}',
 
             'body.lw-active .backgroundContainer,body.lw-active .backdropContainer{',
-            'background:transparent!important;background-image:none!important;}',
+            'background:transparent!important;background-image:none!important;z-index:-11!important;}',
+            
+            'body.lw-active .tmla-mask, body.lw-active .backdrop { z-index: -5 !important; pointer-events: none !important; }',
+            
             'body.lw-active #indexPage{background:transparent!important;}',
-            'body.lw-active #reactRoot{position:relative;z-index:10;}',
+            'body.lw-active #reactRoot{position:relative;z-index:1;}',
 
-            '#' + BTN_ID + '{position:fixed;bottom:32px;left:32px;z-index:999999;',
+            '#' + BTN_ID + '{position:fixed;bottom:32px;left:32px;z-index:99;',
             'display:flex;align-items:center;justify-content:center;width:44px;height:44px;',
             'background:rgba(0,0,0,.6);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);',
             'border:1px solid rgba(255,255,255,.1);border-radius:50%;cursor:pointer;',
@@ -236,19 +238,12 @@
     function updateBtn() {
         var btn = document.getElementById(BTN_ID);
         if (!btn) { return; }
-        
         var expectedIcon = liveEnabled ? 'play_circle' : 'wallpaper';
         var expectedTitle = liveEnabled ? 'Live Wallpaper Active (Click for Static)' : 'Static Wallpaper Active (Click for Live)';
-        
-        if (btn.title !== expectedTitle) {
-            btn.title = expectedTitle;
-        }
-
+        if (btn.title !== expectedTitle) { btn.title = expectedTitle; }
         var iconSpan = btn.querySelector('.material-icons');
         if (iconSpan) {
-            if (iconSpan.textContent !== expectedIcon) {
-                iconSpan.textContent = expectedIcon;
-            }
+            if (iconSpan.textContent !== expectedIcon) { iconSpan.textContent = expectedIcon; }
         } else {
             btn.innerHTML = '<span class="material-icons">' + expectedIcon + '</span>';
         }
@@ -256,26 +251,16 @@
 
     function injectBtn() {
         if (document.getElementById(BTN_ID)) { updateBtn(); return; }
-        
         var btn = document.createElement('button');
         btn.id = BTN_ID;
         btn.onclick = function (e) {
             e.preventDefault();
             e.stopPropagation();
-
             liveEnabled = !liveEnabled;
             localStorage.setItem('jf_lw_live', liveEnabled ? 'true' : 'false');
-            
-            if (liveEnabled) {
-                hideImage();
-                ensurePlayer(showLive);
-            } else {
-                hideLive();
-                showImage();
-            }
+            if (liveEnabled) { hideImage(); ensurePlayer(showLive); } else { hideLive(); showImage(); }
             updateBtn();
         };
-
         document.body.appendChild(btn);
         updateBtn();
     }
@@ -296,23 +281,18 @@
     function tick() {
         injectStyles();
         var onHome = isHomePage();
-
         if (onHome !== lastOnHome) {
             lastOnHome = onHome;
             if (!onHome) { hideAll(); removeBtn(); return; }
         }
         if (!onHome) { return; }
-
         injectBtn();
-
         if (liveEnabled) {
             hideImage();
             var player = document.getElementById(PLAYER_ID);
-            if (!player) {
-                ensurePlayer(showLive);
-            } else if (!player.classList.contains('lw-visible') && playerReady) {
-                showLive();
-            } else if (player.tagName === 'VIDEO' && player.paused && playerReady) {
+            if (!player) { ensurePlayer(showLive); } 
+            else if (!player.classList.contains('lw-visible') && playerReady) { showLive(); } 
+            else if (player.tagName === 'VIDEO' && player.paused && playerReady) {
                 player.muted = true; player.loop = true;
                 player.play().catch(function () {});
             }
@@ -325,5 +305,4 @@
 
     setInterval(tick, 600);
     tick();
-
 })();

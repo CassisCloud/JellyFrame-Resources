@@ -89,6 +89,7 @@
     "author": "tromoSM",
     "description": "A refined and modern UI enhancement focused on improved layout, animations, and iOS-inspired design.",
     "version": "1.0.0",
+    "editorsChoice": true,
     "jellyfin": "10.10+",
     "tags": [
       "modern",
@@ -97,7 +98,9 @@
     ],
     "previewUrl": "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/Assets/desktop-main.png",
     "screenshots": [
-      "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/Assets/desktop-or.png"
+      "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/Assets/desktop-or.png",
+      "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/Assets/desktop-player.png",
+      "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/Assets/desktop-panel.png"
     ],
     "sourceUrl": "https://github.com/tromoSM/better-jellyfin-ui",
     "cssUrl": "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/theme.css",

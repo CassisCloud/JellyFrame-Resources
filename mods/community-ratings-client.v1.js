@@ -15,37 +15,70 @@
     };
 
     function boot() {
+        injectGlobalStyles();
+        startObserver();
+        watchNavigation();
+        document.addEventListener('click', function (e) {
+            if (activePopup && !activePopup.contains(e.target) && !e.target.closest('.cr-detail-rate-btn')) {
+                closePopup();
+            }
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') { closePopup(); }
+        });
         resolveUser(function () {
-            injectGlobalStyles();
-            startObserver();
-            watchNavigation();
+            var widgets = document.querySelectorAll('.cr-detail[data-cr-detail]');
+            for (var i = 0; i < widgets.length; i++) {
+                var itemId = widgets[i].getAttribute('data-cr-detail');
+                if (itemId) {
+                    (function (w, id) {
+                        fetchRating(id, function (data) {
+                            renderDetailWidget(w, id, data);
+                        });
+                    })(widgets[i], itemId);
+                }
+            }
         });
     }
 
     function resolveUser(cb) {
-        function attempt(tries) {
-            if (typeof ApiClient !== 'undefined') {
-                try {
-                    var p = ApiClient.getCurrentUser();
-                    if (p && typeof p.then === 'function') {
-                        p.then(function (u) {
-                            if (u && u.Id) { currentUserId = u.Id; }
-                            cb();
-                        }).catch(function () { cb(); });
-                        return;
-                    }
-                    if (p && p.Id) { currentUserId = p.Id; }
+        var resolved = false;
+        function tryResolve() {
+            if (resolved) { return; }
+            try {
+                if (typeof ApiClient === 'undefined') { return; }
+                var syncId = typeof ApiClient.getCurrentUserId === 'function'
+                    ? ApiClient.getCurrentUserId() : null;
+                if (syncId) {
+                    resolved = true;
+                    currentUserId = syncId;
                     cb();
                     return;
-                } catch (e) { }
-            }
-            if (tries > 0) {
-                setTimeout(function () { attempt(tries - 1); }, 400);
-            } else {
+                }
+                var p = ApiClient.getCurrentUser();
+                if (p && typeof p.then === 'function') {
+                    p.then(function (u) {
+                        if (resolved) { return; }
+                        resolved = true;
+                        if (u && u.Id) { currentUserId = u.Id; }
+                        cb();
+                    }).catch(function () {
+                        if (resolved) { return; }
+                        resolved = true;
+                        cb();
+                    });
+                    return;
+                }
+                if (p && p.Id) { currentUserId = p.Id; }
+                resolved = true;
                 cb();
-            }
+            } catch (e) {}
         }
-        attempt(25);
+        var interval = setInterval(function () {
+            tryResolve();
+            if (resolved) { clearInterval(interval); }
+        }, 300);
+        tryResolve();
     }
 
     function injectGlobalStyles() {

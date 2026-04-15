@@ -95,7 +95,10 @@
       "animated",
       "ios"
     ],
-    "previewUrl": "https://github.com/tromoSM/better-jellyfin-ui/blob/main/Assets/desktop-main.png?raw=true",
+    "previewUrl": "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/Assets/desktop-main.png",
+    "screenshots" [
+      "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/Assets/desktop-or.png"
+    ],
     "sourceUrl": "https://github.com/tromoSM/better-jellyfin-ui",
     "cssUrl": "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/theme.css",
     "preconnect": [

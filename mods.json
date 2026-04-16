@@ -883,7 +883,7 @@
     "name": "JellyChat",
     "author": "grimmdev",
     "description": "Jellyfin chat, directly in real time with other users.",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "jellyfin": "10.11+",
     "tags": [
       "ui",
@@ -895,7 +895,7 @@
     "cssUrl": "",
     "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jelly-chat-client.js",
     "serverJs": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jelly-chat-server.js",
-    "permissions": ["jellyfin.read", "store"],
+    "permissions": ["jellyfin.read", "store", "jellyfin.admin"],
     "requires": [],
     "preconnect": [],
     "vars": []

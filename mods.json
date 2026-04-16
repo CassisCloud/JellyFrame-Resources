@@ -13,9 +13,9 @@
     "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jellyfin-wallpaper.png",
     "editorsChoice": true,
     "screenshots": [
-      "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jellyfin-wallpaper.png",
-      "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jellyfin-wallpaper.png",
-      "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jellyfin-wallpaper.png"
+      "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/Assets/desktop-or.png",
+      "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/Assets/desktop-player.png",
+      "https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/Assets/desktop-panel.png"
     ],
     "sourceUrl": "",
     "cssUrl": null,

@@ -37,6 +37,10 @@ All three are optional. A mod can be CSS-only, JS-only, server-only, or any comb
   "jellyfin": "10.10+",
   "tags": ["ui", "server"],
   "previewUrl": "https://example.com/preview.png",
+  "screenshots": [
+    "https://example.com/shot1.png",
+    "https://example.com/shot2.png"
+  ],
   "sourceUrl": "https://github.com/yourname/my-mod",
   "cssUrl": "https://cdn.example.com/my-mod/style.css",
   "jsUrl": "https://cdn.example.com/my-mod/browser.js",
@@ -44,6 +48,11 @@ All three are optional. A mod can be CSS-only, JS-only, server-only, or any comb
   "permissions": ["jellyfin.read", "store"],
   "requires": [],
   "preconnect": ["https://fonts.googleapis.com"],
+  "editorsChoice": false,
+  "changelog": [
+    { "version": "1.0.0", "date": "2025-01-15", "notes": "Initial release." },
+    { "version": "1.1.0", "date": "2025-02-01", "notes": "Added X, fixed Y." }
+  ],
   "vars": [
     {
       "key": "ACCENT_COLOR",
@@ -86,6 +95,10 @@ All three are optional. A mod can be CSS-only, JS-only, server-only, or any comb
 - `permissions` - only needed for serverJs. Declare only what is actually used.
 - `requires` - other mod ids that must be loaded first. JellyFrame topologically sorts server mods at load time.
 - `preconnect` - optional. Origins to preconnect (DNS + TCP handshake) in <head>. Deduplicated across all enabled mods. Omit if not needed.
+- `previewUrl` - single image shown as the card preview in the mods browser. Optional.
+- `screenshots` - array of image URLs. Optional. Rendered as a gallery on the mod's detail view alongside the preview.
+- `editorsChoice` - boolean. Optional. When true, the card gets an "Editor's Choice" ring/badge in the mods browser. Cosmetic; has no behavioral effect.
+- `changelog` - array of entries. Optional. Used by the update-flow UI to show what changed when a mod's version bumps. Each entry is freeform but the UI expects at least `{ version, notes }` and may also show `date`. Prior-version comparison is keyed off the `version` field of each entry.
 - `vars[].key` - SCREAMING_SNAKE_CASE. Referenced as {{KEY}} in cssUrl/jsUrl and jf.vars['KEY'] in serverJs.
 - `vars[].type` - "text" | "number" | "color" | "boolean". Default: "text".
 - `vars[].default` - always a string even for number and boolean types.
@@ -139,6 +152,14 @@ In serverJs do NOT use {{KEY}} - use jf.vars['KEY'] instead (live string value a
 
 Server JS mods support file-system hot reload. When the cached `.js` file on disk changes, JellyFrame automatically restarts the affected mod without requiring a full server restart or config save. This is useful during local development when you have the Jellyfin data directory mounted.
 
+When a mod is hot-reloaded, JellyFrame:
+1. Fires the old mod's `jf.onStop` callback (best-effort; if it trips the engine's memory or timeout caps during teardown it is silently skipped — the engine is about to be disposed regardless).
+2. Unhooks all Jellyfin event subscriptions registered by the old runtime.
+3. Disposes the old Jint engine and all per-mod surfaces (store handles, timers, scheduler tasks, webhooks, event bus subscriptions, RPC handlers).
+4. Constructs a brand-new Jint engine with a fresh memory counter and runs the new script.
+
+Consequence: persistent `jf.store` / `jf.userStore` / `jf.kv` values survive hot reload; in-memory `jf.cache` entries do not.
+
 ---
 
 ## Permissions reference
@@ -159,6 +180,8 @@ Server JS mods support file-system hot reload. When the cached `.js` file on dis
 | `"webhooks"` | jf.webhooks |
 | `"rpc"` | jf.rpc |
 | `"bus"` | jf.bus |
+| `"filesystem"` | jf.fs (local filesystem read/write) |
+| `"os"` | jf.os (native OS commands, env, platform info) |
 
 Always available without permission: `jf.vars`, `jf.log`, `jf.cache`, `jf.routes`, `jf.perms`, `jf.onStart()`, `jf.onStop()`
 
@@ -181,11 +204,15 @@ jf.scheduler   - intervals and cron          [permission: scheduler]
 jf.bus         - cross-mod event bus         [permission: bus]
 jf.webhooks    - inbound/outbound webhooks   [permission: webhooks]
 jf.rpc         - mod-to-mod calls            [permission: rpc]
+jf.fs          - local filesystem access     [permission: filesystem]
+jf.os          - native OS commands + info   [permission: os]
 jf.onStart(fn) - lifecycle hook, called once after load
 jf.onStop(fn)  - lifecycle hook, called before unload
 ```
 
-Engine limits: ES2022, no DOM, no fetch. Max 64MB Jint heap (CLR objects from jf.jellyfin.* do NOT count). Max 30s load timeout.
+Engine limits: ES2022, no DOM, no fetch. Max 256 MB Jint tracked-allocation budget per engine lifetime (CLR objects from jf.jellyfin.* do NOT count). Max 30s load timeout. Max 10 000 000 statements per Execute call.
+
+Note on the memory budget: Jint's `LimitMemory` constraint counts *cumulative* tracked allocations over the engine's lifetime, not live heap. A long-running mod will climb steadily even with cheap per-request work. A hot-reload (file-system change to the cached serverjs file) or a Jellyfin restart resets the counter by constructing a new engine.
 
 ---
 
@@ -338,6 +365,81 @@ if (!r.ok) {
 }
 var data = r.json();
 ```
+
+---
+
+## jf.fs — local filesystem
+
+Requires `"filesystem"` permission. All methods are synchronous. No sandboxing — the mod has whatever filesystem access the Jellyfin process has. Use responsibly.
+
+```js
+// --- Read ---
+jf.fs.readFile(path)                 // -> string  (UTF-8)
+jf.fs.readFileBase64(path)           // -> string  (binary as Base64)
+
+// --- Write / append ---
+jf.fs.writeFile(path, content)       // overwrites; UTF-8
+jf.fs.appendFile(path, content)      // creates if missing
+jf.fs.writeFileBase64(path, base64)  // decodes and writes raw bytes
+
+// --- Delete / move / copy ---
+jf.fs.deleteFile(path)               // -> boolean  false if file didn't exist
+jf.fs.moveFile(source, dest)         // overwrites dest
+jf.fs.copyFile(source, dest)         // overwrites dest
+
+// --- Directory operations ---
+jf.fs.listDir(path)                  // -> [{ name, path, type: "file"|"directory" }, ...]
+jf.fs.makeDir(path)                  // creates parents as needed
+jf.fs.deleteDir(path, recursive?)    // -> boolean  recursive defaults to false
+
+// --- Existence / type checks ---
+jf.fs.exists(path)                   // -> boolean
+jf.fs.isFile(path)                   // -> boolean
+jf.fs.isDir(path)                    // -> boolean
+
+// --- Metadata ---
+jf.fs.stat(path)                     // -> { type, size, createdAt, modifiedAt, name, directory } | null
+// 'type' is "file" or "directory". 'size' is bytes (0 for directories).
+// 'createdAt' and 'modifiedAt' are ISO 8601 UTC strings.
+
+// --- Path helpers ---
+jf.fs.resolvePath(path)              // -> string  normalises e.g. "../" segments
+jf.fs.joinPath(a, b)                 // -> string  uses OS separator
+```
+
+Throws (JavaScript exception inside Jint) on invalid paths or I/O errors. Wrap destructive operations in try/catch.
+
+---
+
+## jf.os — native OS commands and system info
+
+Requires `"os"` permission. Lets a mod shell out to the host and inspect the environment. Dangerous surface — treat it like granting shell access.
+
+```js
+// --- Execute a command ---
+// command is passed to cmd.exe /c on Windows, /bin/sh -c on Linux/macOS.
+var r = jf.os.exec(command, options?);
+// options: { cwd: '/some/dir', env: { KEY: 'val' }, timeoutMs: 30000 }
+//   timeoutMs default 30000, min 1000, max 300000 (5 min).
+//
+// r.stdout    - string
+// r.stderr    - string
+// r.exitCode  - number  (-1 when timedOut is true)
+// r.timedOut  - boolean
+
+// --- Environment variables ---
+jf.os.env(name)          // -> string | null  single var
+jf.os.envAll()           // -> { KEY: "value", ... }  all env vars
+
+// --- Platform / machine info ---
+jf.os.platform()         // -> "windows" | "linux" | "osx"
+jf.os.osDescription()    // -> string  e.g. "Linux 6.1.0-25-amd64 #1 SMP ..."
+jf.os.hostname()         // -> string
+jf.os.cpuCount()         // -> number  logical CPU cores
+jf.os.memoryInfo()       // -> { processWorkingSetBytes, processPrivateBytes, gcTotalMemoryBytes }
+```
+
+The command string is wrapped in the system shell, so shell metacharacters (`|`, `>`, `$(...)`, etc.) are interpreted. Never build a command string from untrusted input.
 
 ---
 
@@ -964,7 +1066,7 @@ mods.json entry:
 1. Always bump version when changing any asset file.
 2. serverJs vars use jf.vars['KEY'], not {{KEY}}.
 3. All jf.store / jf.userStore / jf.kv values are strings - String() before set, parse after get.
-4. jf.jellyfin.* returns CLR-wrapped objects - they do NOT count against the 64MB Jint heap limit.
+4. jf.jellyfin.* returns CLR-wrapped objects - they do NOT count against the 256 MB Jint memory budget.
 5. Event handlers must be void - do not return from jf.jellyfin.on() callbacks.
 6. Clean up in jf.onStop: cancelAll(), offAll(), jf.jellyfin.off() per event name, webhooks.unregister() per hook.
 7. requires[] controls load order - missing dependency skips the dependent mod entirely.
@@ -985,3 +1087,6 @@ mods.json entry:
 22. jf.jellyfin.setFavourite uses British spelling (setFavourite, not setFavorite).
 23. jf.jellyfin.deleteItem() removes from library only, NOT from disk.
 24. jf.jellyfin.notify() returns the number of WebSocket sessions notified (int), not a boolean.
+25. jf.fs and jf.os are unsandboxed and run with the full privileges of the Jellyfin process. Never build command strings or file paths from untrusted input (req.body, req.query, webhook payloads, etc.).
+26. jf.os.exec goes through the system shell (`cmd.exe /c` on Windows, `/bin/sh -c` elsewhere) — shell metacharacters in the command string are interpreted.
+27. The 256 MB Jint memory budget is cumulative allocations over the engine's lifetime, not live heap. It resets on hot-reload and on Jellyfin restart; GC does not reclaim against it.

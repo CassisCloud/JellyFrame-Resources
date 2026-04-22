@@ -66,6 +66,6 @@ jf.routes.get('/recommendations', function(req, res) {
         results = scored.slice(0, 10);
     }
 
-    jf.cache.set(cacheKey, results, 60 * 60 * 1000);
+    jf.cache.set(cacheKey, results, 1 * 60 * 1000);
     return res.json(results);
 });

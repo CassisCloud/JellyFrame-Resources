@@ -1,19 +1,16 @@
 [
   {
-    "id": "quick-queue",
-    "name": "Watch Queue",
+    "id": "smart-recommendations",
+    "name": "Smart Recommendations",
     "author": "grimmdev",
-    "description": "A personal watch queue. Add movies or episodes from any card or detail page, reorder them, and play in sequence.",
+    "description": "An algorithmic recommendation engine based on your favorite genres and tags.",
     "version": "1.0.0",
-    "jellyfin": "10.9+",
-    "tags": ["ui", "playback", "queue"],
-    "previewUrl": "",
-    "sourceUrl": "",
+    "jellyfin": "10.11+",
+    "tags": ["ui", "server", "algorithm"],
     "cssUrl": null,
-    "jsUrl": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/quick-queue-client.js",
-    "serverJs": null,
-    "permissions": [],
-    "requires": [],
-    "vars": []
+    "jsUrl": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/recommendations-section-client.js",
+    "serverJs": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/recommendations-section-server.js",
+    "permissions": ["jellyfin.read"],
+    "requires": []
   }
 ]

@@ -1,16 +1,34 @@
 [
   {
-    "id": "smart-recommendations",
-    "name": "Smart Recommendations",
+    "id": "jelly-grok",
+    "name": "JellyGrok Assistant",
     "author": "grimmdev",
-    "description": "An algorithmic recommendation engine based on your favorite genres and tags.",
-    "version": "1.0.1",
+    "description": "High-speed AI chat using xAI's Grok 4.20 non-reasoning model.",
+    "version": "1.0.0",
     "jellyfin": "10.11+",
-    "tags": ["ui", "server", "algorithm"],
-    "cssUrl": null,
-    "jsUrl": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/recommendations-section-client.js",
-    "serverJs": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/recommendations-section-server.js",
-    "permissions": ["jellyfin.read"],
-    "requires": []
+    "tags": ["ui", "grok", "ai"],
+    "jsUrl": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/jelly-grok-client.js",
+    "serverJs": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/jelly-grok-server.js",
+    "permissions": ["http"],
+    "vars": [
+      {
+        "key": "API_URL",
+        "name": "xAI API URL",
+        "type": "text",
+        "default": "https://api.x.ai/v1/chat/completions"
+      },
+      {
+        "key": "API_KEY",
+        "name": "xAI API Key",
+        "type": "text",
+        "default": ""
+      },
+      {
+        "key": "MODEL",
+        "name": "Model Name",
+        "type": "text",
+        "default": "grok-4.20-0309-non-reasoning"
+      }
+    ]
   }
 ]

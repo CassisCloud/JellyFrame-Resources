@@ -1,5 +1,20 @@
 [
   {
+    "id": "smart-recommendations",
+    "name": "Smart Recommendations",
+    "author": "grimmdev",
+    "description": "An algorithmic recommendation engine based on your favorite genres and tags.",
+    "version": "1.0.0",
+    "jellyfin": "10.11+",
+    "tags": ["ui", "server", "algorithm"],
+    "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/smart-recommendations.png",
+    "cssUrl": null,
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/smart-recommendations-client.js",
+    "serverJs": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/smart-recommendations-server.js",
+    "permissions": ["jellyfin.read"],
+    "requires": []
+  },
+  {
     "id": "jellyfin-wallpaper",
     "name": "Jellyfin Wallpaper",
     "author": "grimmdev",

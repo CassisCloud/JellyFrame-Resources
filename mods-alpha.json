@@ -4,7 +4,7 @@
     "name": "Smart Recommendations",
     "author": "grimmdev",
     "description": "An algorithmic recommendation engine based on your favorite genres and tags.",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "jellyfin": "10.11+",
     "tags": ["ui", "server", "algorithm"],
     "cssUrl": null,

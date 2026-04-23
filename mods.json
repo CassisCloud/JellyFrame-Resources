@@ -1,5 +1,20 @@
 [
   {
+    "id": "jellyfin-social",
+    "name": "Jellyfin Social",
+    "author": "grimmdev",
+    "description": "A social network for your Jellyfin server where users can share thoughts, recommendations and more.",
+    "version": "1.0.0",
+    "jellyfin": "10.10+",
+    "tags": ["social", "ui", "server"],
+    "cssUrl": "",
+    "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jellyfin-social.png",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jellyfin-social-client.js",
+    "serverJs": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jellyfin-social-server.js",
+    "permissions": ["jellyfin.read", "db"],
+    "vars": []
+  },
+  {
     "id": "kefinframe",
     "name": "KefinFrame",
     "author": "grimmdev",

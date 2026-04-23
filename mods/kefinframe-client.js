@@ -7,7 +7,7 @@
 
 (function () {
     'use strict';
-  
+
     var MOD_ID = 'kefinframe';
     var API_BASE = '/JellyFrame/mods/' + MOD_ID + '/api';
     var STORAGE_KEY = 'kefinframe_state';
@@ -21,7 +21,7 @@
         isAdmin: false,
         config: null,
         skins: [],
-        watchlistCache: null, // { items: [], count: 0 }
+        watchlistCache: null,
         initialized: false
     };
 
@@ -112,16 +112,18 @@
             state.isAdmin = !!(user.Policy && user.Policy.IsAdministrator);
             state.initialized = true;
 
-            apiGet('/config?userId=' + state.userId, function (err, cfg) {
-                if (err || !cfg) { return; }
-                state.config = cfg;
-                applyAll();
-                setupMutationObserver();
-            });
+            apiGet('/skins', function (errSkins, skinsData) {
+                if (!errSkins && skinsData) {
+                    state.skins = skinsData;
+                }
 
-            // Load skins list in background
-            apiGet('/skins', function (err, data) {
-                if (!err && data) { state.skins = data; }
+                apiGet('/config?userId=' + state.userId, function (errCfg, cfg) {
+                    if (errCfg || !cfg) { return; }
+                    state.config = cfg;
+
+                    applyAll();
+                    setupMutationObserver();
+                });
             });
         });
     }
@@ -142,33 +144,38 @@
         if (path === lastPath) { return; }
         lastPath = path;
 
-        // Re-inject per-page UI after a short delay for DOM to settle
         setTimeout(function () {
-            if (state.config && state.config.features.watchlist) {
-                injectWatchlistButtons();
-            }
-            if (state.config && state.config.features.customHomeSections && isHomePage()) {
-                injectHomeSections();
-            }
-        }, 600);
+            if (!state.config) { return; }
+
+            if (state.config.features.skinSwitcher) { injectSkinSwitcherButton(); }
+            injectSettingsButton();
+            if (state.config.features.customNavLinks) { applyNavLinks(); }
+            if (state.config.features.watchlist) { injectWatchlistButtons(); }
+            if (state.config.features.customHomeSections && isHomePage()) { injectHomeSections(); }
+        }, 500);
     }
 
     function isHomePage() {
         var p = currentPath();
-        return p === '#!' || p === '' || p.indexOf('home.html') !== -1 || p === '/' || p.indexOf('#!/home') !== -1;
+        return p === '#!' || p === '#' || p === '' || p === '/' || p.indexOf('home') !== -1;
     }
 
     function setupMutationObserver() {
         var observer = new MutationObserver(debounce(function () {
             var path = currentPath();
             if (path !== lastPath) { onRouteChange(); }
-            if (state.config && state.config.features.watchlist) {
-                injectWatchlistButtons();
+
+            if (state.config) {
+                if (state.config.features.watchlist) {
+                    injectWatchlistButtons();
+                }
+                if (state.config.features.customHomeSections && isHomePage()) {
+                    injectHomeSections(false);
+                }
             }
         }, 300));
         observer.observe(document.body, { childList: true, subtree: true });
 
-        // Also listen to hashchange
         window.addEventListener('hashchange', function () { onRouteChange(); });
         window.addEventListener('popstate', function () { onRouteChange(); });
     }
@@ -196,7 +203,6 @@
         link.id = SKIN_STYLE_ID;
         frag.appendChild(link);
 
-        // Color scheme
         if (schemeId && skin.colorSchemes) {
             for (var j = 0; j < skin.colorSchemes.length; j++) {
                 if (skin.colorSchemes[j].id === schemeId && skin.colorSchemes[j].cssUrl) {
@@ -209,22 +215,49 @@
                 }
             }
         }
-        document.head.appendChild(frag);
+        document.body.appendChild(frag);
+    }
+
+    function findHeaderButtonRow() {
+        return document.querySelector('.headerRight')
+            || document.querySelector('.skinHeader .headerButtons')
+            || document.querySelector('header .headerButtons')
+            || document.querySelector('.viewManagerContainer header');
+    }
+
+    function makeHeaderIconBtn(id, title, svgPath) {
+        var btn = document.createElement('button');
+        btn.id = id;
+        btn.type = 'button';
+        btn.title = title;
+        btn.classList.add("headerSyncButton", "headerButton", "headerButtonRight", "paper-icon-button-light");
+        btn.style.cssText = 'padding: 8.273px;cursor:pointer;margin:0;color:inherit;opacity:0.75;display:inline-flex;align-items:center;justify-content:center;height:100%;min-width:32px;vertical-align:middle;';
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24.849" height="24.849" viewBox="0 0 24 24" fill="currentColor">' + svgPath + '</svg>';
+        btn.addEventListener('mouseover', function () { this.style.opacity = '1'; });
+        btn.addEventListener('mouseout', function () { this.style.opacity = '0.75'; });
+        return btn;
     }
 
     function injectSkinSwitcherButton() {
         if (document.getElementById('kf-skin-btn')) { return; }
-        var header = document.querySelector('.headerRight, .skinHeader-withBackground .headerRight, header .headerButtons');
+        var header = findHeaderButtonRow();
         if (!header) { return; }
 
-        var btn = document.createElement('button');
-        btn.id = 'kf-skin-btn';
-        btn.title = 'Change Appearance';
-        btn.style.cssText = 'background:none;border:none;cursor:pointer;padding:6px 8px;opacity:0.8;color:inherit;display:flex;align-items:center;gap:4px;font-size:12px;';
-        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>';
+        var btn = makeHeaderIconBtn(
+            'kf-skin-btn',
+            'Change Appearance (KefinFrame)',
+            '<path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>'
+        );
         btn.addEventListener('click', function (e) {
             e.stopPropagation();
-            openSkinPanel();
+            if (!state.skins || state.skins.length === 0) {
+                apiGet('/skins', function (err, data) {
+                    if (!err && data) { state.skins = data; }
+                    openSkinPanel();
+                });
+            } else {
+                openSkinPanel();
+            }
         });
         header.insertBefore(btn, header.firstChild);
     }
@@ -290,7 +323,6 @@
                     state.config.skin.activeColorScheme = '';
                     apiPost('/config', { userId: state.userId, skin: state.config.skin }, null);
                     applySkin();
-                    // Refresh panel
                     var panel = document.getElementById('kf-skin-panel');
                     if (panel) {
                         var body = panel.querySelector('.kf-panel-body');
@@ -333,39 +365,53 @@
         return row;
     }
 
+    var navLinksRetryTimer = null;
+
     function applyNavLinks() {
-        var existing = document.getElementById(NAV_LINKS_ID);
-        if (existing) { existing.parentNode.removeChild(existing); }
+        var existing = document.querySelectorAll('.kf-nav-link-btn');
+        for (var r = 0; r < existing.length; r++) {
+            existing[r].parentNode && existing[r].parentNode.removeChild(existing[r]);
+        }
 
         var links = state.config.navLinks;
         if (!links || links.length === 0) { return; }
 
-        var nav = document.querySelector('.mainDrawer .drawerContent, nav.mainDrawer');
-        if (!nav) { return; }
-
-        var group = document.createElement('div');
-        group.id = NAV_LINKS_ID;
-        group.style.cssText = 'border-top:1px solid rgba(255,255,255,0.08);padding:8px 0;';
-
-        var header = document.createElement('div');
-        header.style.cssText = 'padding:8px 20px 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#666;';
-        header.textContent = 'Custom Links';
-        group.appendChild(header);
+        var slider = document.querySelector('div.emby-tabs-slider');
+        if (!slider) {
+            if (navLinksRetryTimer) { clearTimeout(navLinksRetryTimer); }
+            navLinksRetryTimer = setTimeout(applyNavLinks, 600);
+            return;
+        }
 
         for (var i = 0; i < links.length; i++) {
             var link = links[i];
-            var a = document.createElement('a');
-            a.href = link.url || '#';
-            a.target = link.external ? '_blank' : '_self';
-            a.rel = link.external ? 'noopener' : '';
-            a.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 20px;color:inherit;text-decoration:none;font-size:14px;transition:background 0.1s;';
-            a.innerHTML = '<span style="width:24px;text-align:center;opacity:0.7;">' + (link.icon || '&#9656;') + '</span>'
-                + '<span>' + escapeHtml(link.label || link.url) + '</span>';
-            a.addEventListener('mouseover', function () { this.style.background = 'rgba(255,255,255,0.06)'; });
-            a.addEventListener('mouseout', function () { this.style.background = ''; });
-            group.appendChild(a);
+            if (!link.url) { continue; }
+
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.setAttribute('is', 'emby-button');
+            btn.className = 'emby-tab-button emby-button kf-nav-link-btn';
+            btn.setAttribute('data-index', '900' + i);
+
+            var fg = document.createElement('div');
+            fg.className = 'emby-button-foreground';
+            fg.textContent = link.label || link.url;
+            btn.appendChild(fg);
+
+            btn.addEventListener('click', function (url, external) {
+                return function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (external) {
+                        window.open(url, '_blank', 'noopener');
+                    } else {
+                        window.location.href = url;
+                    }
+                };
+            }(link.url, !!link.external));
+
+            slider.appendChild(btn);
         }
-        nav.appendChild(group);
     }
 
     var watchlistSet = {};
@@ -411,7 +457,6 @@
                     e.preventDefault();
                     toggleWatchlist(this);
                 });
-                // Make card position relative if needed
                 var pos = window.getComputedStyle(card).position;
                 if (pos === 'static') { card.style.position = 'relative'; }
                 card.appendChild(btn);
@@ -462,7 +507,6 @@
 
     function initEnhancedSearch() {
         if (!state.config || !state.config.features.enhancedSearch) { return; }
-        // Intercept the native search button click
         document.addEventListener('click', function (e) {
             var btn = e.target.closest('.headerSearchButton, .btnSearch, [data-action="search"]');
             if (btn) {
@@ -472,7 +516,6 @@
             }
         }, true);
 
-        // Keyboard shortcut: / or Ctrl+K
         document.addEventListener('keydown', function (e) {
             if ((e.key === '/' || (e.ctrlKey && e.key === 'k')) && !e.target.matches('input,textarea')) {
                 e.preventDefault();
@@ -618,7 +661,6 @@
                 row.appendChild(thumb);
                 row.appendChild(info);
 
-                // Watchlist toggle in search result
                 if (state.config.features.watchlist) {
                     var wlBtn = document.createElement('button');
                     wlBtn.dataset.itemId = item.id;
@@ -659,54 +701,78 @@
         if (el) { el.parentNode.removeChild(el); }
     }
 
-    function injectHomeSections() {
+    function injectHomeSections(forceRebuild) {
         if (!state.config || !state.config.features.customHomeSections) { return; }
         var sections = state.config.homeSections;
         if (!sections || sections.length === 0) { return; }
 
-        var existing = document.getElementById(HOME_SECTIONS_ID);
-        if (existing) { existing.parentNode.removeChild(existing); }
+        var homeMain = null;
+        var containers = document.querySelectorAll('.homeSectionsContainer');
 
-        // Find the home page sections container
-        var homeMain = document.querySelector('.homeSectionsContainer, .sections, .itemsContainer');
+        for (var i = 0; i < containers.length; i++) {
+            if (!containers[i].closest('.hide')) {
+                homeMain = containers[i];
+                break;
+            }
+        }
+
         if (!homeMain) { return; }
 
-        var wrapper = document.createElement('div');
-        wrapper.id = HOME_SECTIONS_ID;
-        wrapper.style.cssText = 'padding:0 0 24px;';
+        var existing = homeMain.querySelector('.kf-home-sections-wrapper');
 
-        for (var i = 0; i < sections.length; i++) {
-            var sec = sections[i];
+        if (existing && !forceRebuild) {
+            return;
+        }
+
+        if (existing) {
+            existing.parentNode.removeChild(existing);
+        }
+
+        var wrapper = document.createElement('div');
+        wrapper.className = 'kf-home-sections-wrapper';
+
+        var addedCount = 0;
+
+        for (var j = 0; j < sections.length; j++) {
+            var sec = sections[j];
             if (!sec.enabled) { continue; }
             (function (section) {
                 var sectionEl = buildHomeSectionShell(section);
                 wrapper.appendChild(sectionEl);
                 loadHomeSectionData(section, sectionEl);
+                addedCount++;
             }(sec));
         }
 
-        homeMain.parentNode.insertBefore(wrapper, homeMain);
+        if (addedCount > 0) {
+            homeMain.appendChild(wrapper);
+        }
     }
 
     function buildHomeSectionShell(section) {
         var el = document.createElement('div');
-        el.className = 'kf-home-section';
-        el.style.cssText = 'margin-bottom:32px;';
-
-        var titleRow = document.createElement('div');
-        titleRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0 4px 12px;';
+        el.className = 'verticalSection emby-scroller-container kf-home-section';
 
         var title = document.createElement('h2');
-        title.style.cssText = 'font-size:18px;font-weight:600;margin:0;color:#e0e0e0;';
+        title.className = 'sectionTitle sectionTitle-cards padded-left';
         title.textContent = section.title || section.name || 'Section';
+        el.appendChild(title);
 
-        titleRow.appendChild(title);
-        el.appendChild(titleRow);
+        var scroller = document.createElement('div');
+        scroller.setAttribute('is', 'emby-scroller');
+        scroller.className = 'padded-top-focusscale padded-bottom-focusscale emby-scroller';
+        scroller.setAttribute('data-centerfocus', 'true');
+        scroller.setAttribute('data-scroll-mode-x', 'custom');
 
-        var scroll = document.createElement('div');
-        scroll.style.cssText = 'display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;scrollbar-width:thin;';
-        scroll.innerHTML = '<div style="color:#666;font-size:13px;padding:20px;">Loading...</div>';
-        el.appendChild(scroll);
+        var itemsContainer = document.createElement('div');
+        itemsContainer.setAttribute('is', 'emby-itemscontainer');
+        itemsContainer.className = 'itemsContainer scrollSlider focuscontainer-x animatedScrollX';
+        itemsContainer.style.cssText = 'white-space: nowrap;';
+
+        itemsContainer.innerHTML = '<div style="color:#666;font-size:13px;padding:20px;white-space:normal;">Loading...</div>';
+
+        scroller.appendChild(itemsContainer);
+        el.appendChild(scroller);
 
         return el;
     }
@@ -719,92 +785,149 @@
             + '&limit=' + (section.limit || 20);
 
         apiGet(url, function (err, data) {
-            var scroll = el.querySelector('div:last-child');
+            var scroll = el.querySelector('.itemsContainer');
             if (!scroll) { return; }
             scroll.innerHTML = '';
 
             if (err || !data || !data.items || data.items.length === 0) {
-                scroll.innerHTML = '<div style="color:#666;font-size:13px;padding:20px;">No items found</div>';
+                scroll.innerHTML = '<div style="color:#666;font-size:13px;padding:20px;white-space:normal;">No items found</div>';
                 return;
             }
 
             for (var i = 0; i < data.items.length; i++) {
                 var card = buildHomeCard(data.items[i]);
+
+                card.style.display = 'inline-block';
+                card.style.verticalAlign = 'top';
+                card.style.marginRight = '12px';
+                card.style.whiteSpace = 'normal';
+
                 scroll.appendChild(card);
             }
         });
     }
 
     function buildHomeCard(item) {
+        var serverId = typeof ApiClient !== 'undefined' && ApiClient.serverId ? ApiClient.serverId() : '';
+
+        var isBackdrop = item.type === 'Episode' || item.type === 'Video' || item.type === 'CollectionFolder';
+        var cardClass = isBackdrop ? 'overflowBackdropCard' : 'overflowPortraitCard';
+        var padderClass = isBackdrop ? 'cardPadder-overflowBackdrop' : 'cardPadder-overflowPortrait';
+        var isFolder = item.isFolder || item.type === 'Series' || item.type === 'CollectionFolder' ? 'true' : 'false';
+
         var card = document.createElement('div');
-        card.style.cssText = 'flex-shrink:0;width:140px;cursor:pointer;border-radius:6px;overflow:hidden;background:#111;transition:transform 0.15s;position:relative;';
-        card.addEventListener('mouseover', function () { this.style.transform = 'translateY(-3px)'; });
-        card.addEventListener('mouseout', function () { this.style.transform = ''; });
+        card.className = 'card ' + cardClass + ' card-hoverable card-withuserdata';
 
-        var imgSrc = item.imageTags && item.imageTags.Primary
-            ? imageUrl(item.id, item.imageTags.Primary, 'Primary', 280)
-            : (item.imageTags && item.imageTags.Thumb ? imageUrl(item.id, item.imageTags.Thumb, 'Thumb', 280) : '');
+        card.setAttribute('data-id', item.id);
+        card.setAttribute('data-type', item.type);
+        card.setAttribute('data-serverid', serverId);
+        card.setAttribute('data-isfolder', isFolder);
+        if (item.mediaType) { card.setAttribute('data-mediatype', item.mediaType); }
 
-        var imgEl = document.createElement('div');
-        imgEl.style.cssText = 'width:140px;height:200px;background:#1a1a1a;';
+        card.style.position = 'relative';
+
+        var cardBox = document.createElement('div');
+        cardBox.className = 'cardBox cardBox-bottompadded';
+
+        var cardScalable = document.createElement('div');
+        cardScalable.className = 'cardScalable';
+
+        var cardPadder = document.createElement('div');
+        cardPadder.className = 'cardPadder ' + padderClass;
+
+        var imgSrc = item.imageTags && item.imageTags.Primary && !isBackdrop
+            ? imageUrl(item.id, item.imageTags.Primary, 'Primary', 400)
+            : (item.imageTags && item.imageTags.Thumb ? imageUrl(item.id, item.imageTags.Thumb, 'Thumb', 400) : '');
+
+        var hash = '#/details?id=' + item.id + '&serverId=' + serverId;
+
+        var cardImageContainer = document.createElement('a');
+        cardImageContainer.className = 'cardImageContainer coveredImage cardContent itemAction lazy lazy-image-fadein-fast';
+        cardImageContainer.setAttribute('data-action', 'link');
+        cardImageContainer.href = hash;
+
         if (imgSrc) {
-            var img = document.createElement('img');
-            img.src = imgSrc;
-            img.loading = 'lazy';
-            img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
-            imgEl.appendChild(img);
+            cardImageContainer.style.backgroundImage = 'url("' + imgSrc + '")';
         }
 
-        var info = document.createElement('div');
-        info.style.cssText = 'padding:6px 8px 8px;';
+        var overlay = document.createElement('div');
+        overlay.className = 'cardOverlayContainer itemAction';
+        overlay.setAttribute('data-action', 'link');
 
-        var name = document.createElement('div');
-        name.style.cssText = 'font-size:12px;font-weight:500;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;';
-        name.textContent = item.name;
+        var playBtn = document.createElement('button');
+        playBtn.setAttribute('is', 'paper-icon-button-light');
+        playBtn.className = 'cardOverlayFab-primary itemAction paper-icon-button-light';
+        playBtn.setAttribute('data-action', 'resume');
+        playBtn.title = 'Play';
+        playBtn.innerHTML = '<span class="material-icons cardOverlayFabIcon play_arrow" aria-hidden="true"></span>';
+        overlay.appendChild(playBtn);
 
-        var meta = document.createElement('div');
-        meta.style.cssText = 'font-size:10px;color:#888;margin-top:3px;';
-        meta.textContent = item.productionYear || '';
+        var overlayBtnContainer = document.createElement('div');
+        overlayBtnContainer.className = 'cardOverlayButton-br flex';
 
-        info.appendChild(name);
-        info.appendChild(meta);
-        card.appendChild(imgEl);
-        card.appendChild(info);
+        var moreBtn = document.createElement('button');
+        moreBtn.setAttribute('is', 'paper-icon-button-light');
+        moreBtn.className = 'cardOverlayButton cardOverlayButton-hover itemAction paper-icon-button-light';
+        moreBtn.setAttribute('data-action', 'menu');
+        moreBtn.title = 'More';
+        moreBtn.innerHTML = '<span class="material-icons cardOverlayButtonIcon cardOverlayButtonIcon-hover more_vert" aria-hidden="true"></span>';
 
-        // Watchlist button on card
-        if (state.config.features.watchlist) {
+        overlayBtnContainer.appendChild(moreBtn);
+        overlay.appendChild(overlayBtnContainer);
+
+        cardScalable.appendChild(cardPadder);
+        cardScalable.appendChild(cardImageContainer);
+        cardScalable.appendChild(overlay);
+
+        var cardText1 = document.createElement('div');
+        cardText1.className = 'cardText cardTextCentered cardText-first';
+        cardText1.innerHTML = '<bdi><a href="' + hash + '" class="itemAction textActionButton" data-action="link">' + escapeHtml(item.name) + '</a></bdi>';
+
+        var cardText2 = document.createElement('div');
+        cardText2.className = 'cardText cardTextCentered cardText-secondary';
+        var metaText = item.productionYear || item.seriesName || '';
+        cardText2.innerHTML = '<bdi>' + escapeHtml(metaText) + '</bdi>';
+
+        cardBox.appendChild(cardScalable);
+        cardBox.appendChild(cardText1);
+        if (metaText) {
+            cardBox.appendChild(cardText2);
+        }
+
+        card.appendChild(cardBox);
+        
+        if (state.config && state.config.features.watchlist) {
             var wlBtn = document.createElement('button');
+            wlBtn.className = 'kf-wl-btn';
             wlBtn.dataset.itemId = item.id;
             var inWl = !!watchlistSet[item.id];
-            wlBtn.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.65);border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;';
+
+            wlBtn.style.cssText = 'position:absolute;top:6px;right:6px;z-index:10;background:rgba(0,0,0,0.65);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:transform 0.15s,background 0.15s;';
             wlBtn.title = inWl ? 'Remove from Watchlist' : 'Add to Watchlist';
             wlBtn.innerHTML = inWl ? watchlistIconFilled() : watchlistIconEmpty();
+
             wlBtn.addEventListener('click', function (e) {
                 e.stopPropagation();
+                e.preventDefault();
                 toggleWatchlist(this);
-                this.innerHTML = watchlistSet[this.dataset.itemId] ? watchlistIconFilled() : watchlistIconEmpty();
             });
+
             card.appendChild(wlBtn);
         }
-
-        card.addEventListener('click', function (e) {
-            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) { return; }
-            navigateTo(item.id, item.type);
-        });
 
         return card;
     }
 
     function injectSettingsButton() {
         if (document.getElementById('kf-settings-btn')) { return; }
-        var header = document.querySelector('.headerRight, header .headerButtons');
+        var header = findHeaderButtonRow();
         if (!header) { return; }
 
-        var btn = document.createElement('button');
-        btn.id = 'kf-settings-btn';
-        btn.title = 'KefinFrame Settings';
-        btn.style.cssText = 'background:none;border:none;cursor:pointer;padding:6px 8px;opacity:0.7;color:inherit;';
-        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>';
+        var btn = makeHeaderIconBtn(
+            'kf-settings-btn',
+            'KefinFrame Settings',
+            '<path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94zM12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>'
+        );
         btn.addEventListener('click', function (e) {
             e.stopPropagation();
             openSettingsPanel();
@@ -822,7 +945,6 @@
     function buildSettingsContent() {
         var wrap = document.createElement('div');
 
-        // Feature toggles
         var sectionTitle = function (text) {
             var el = document.createElement('div');
             el.style.cssText = 'font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#00a4dc;padding:16px 0 8px;';
@@ -846,19 +968,16 @@
             wrap.appendChild(row);
         }
 
-        // Nav Links section
         wrap.appendChild(sectionTitle('Custom Nav Links'));
         var navLinkEditor = buildNavLinkEditor();
         wrap.appendChild(navLinkEditor);
 
-        // Home sections reorder (if feature enabled)
         if (state.config.features.customHomeSections) {
             wrap.appendChild(sectionTitle('Home Screen Sections'));
             var homeSectionEditor = buildHomeSectionEditor();
             wrap.appendChild(homeSectionEditor);
         }
 
-        // Export / Import / Reset
         wrap.appendChild(sectionTitle('Data'));
         var dataRow = document.createElement('div');
         dataRow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
@@ -1022,7 +1141,6 @@
     function buildHomeSectionEditor() {
         var wrap = document.createElement('div');
 
-        // Load available section types
         apiGet('/home/sections/available?userId=' + state.userId, function (err, data) {
             if (err || !data) { return; }
             var available = data.sections;
@@ -1086,7 +1204,8 @@
                 state.config.homeSections = active;
                 apiPost('/config', { userId: state.userId, homeSections: active }, null);
                 showToast('Home sections saved');
-                if (isHomePage()) { injectHomeSections(); }
+
+                if (isHomePage()) { injectHomeSections(true); }
             });
             wrap.appendChild(saveBtn);
         });
@@ -1192,14 +1311,12 @@
         boot();
     }
 
-    // Also re-init enhanced search after route changes since init only fires once
     window.addEventListener('hashchange', function () {
         if (state.initialized && state.config && state.config.features.enhancedSearch) {
             initEnhancedSearch();
         }
     });
 
-    // Expose minimal public API for debugging
     window.__kefinFrame = {
         state: state,
         reload: function () { state.initialized = false; boot(); },
@@ -1207,8 +1324,6 @@
         openSkins: openSkinPanel
     };
 
-    // Delay initEnhancedSearch until config is loaded (called from applyAll -> onRouteChange chain)
-    // Override applyAll to also init search
     var _applyAll = applyAll;
     applyAll = function () {
         _applyAll();

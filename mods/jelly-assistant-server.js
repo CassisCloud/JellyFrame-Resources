@@ -1,5 +1,5 @@
 jf.onStart(function() {
-    jf.log.info('JellyAssistant (OpenRouter) mod started.');
+    jf.log.info('JellyAssistant started. Optimized for performance and timeout safety.');
 });
 
 jf.routes.get('/hello', function(req, res) {
@@ -14,23 +14,17 @@ jf.routes.post('/chat', function(req, res) {
     var libraryReadAccess = jf.vars['ENABLE_LIBRARY_READ_ACCESS'] === '1';
 
     if (!apiKey || apiKey === '') {
-        return res.status(401).json({ error: 'OpenRouter API Key is missing in settings.' });
+        return res.status(401).json({ error: 'API Key missing in settings.' });
     }
 
-    var messagesJson = '';
-    if (req.body && req.body.messagesJson) {
-        messagesJson = String(req.body.messagesJson);
-    }
-
-    if (!messagesJson || messagesJson === '') {
-        return res.status(400).json({ error: 'No chat history provided.' });
-    }
-
+    var body = req.body || {};
+    var messagesStr = body.messagesJson ? String(body.messagesJson) : '[]';
     var messages = [];
+    
     try {
-        messages = JSON.parse(messagesJson);
+        messages = JSON.parse(messagesStr);
     } catch(e) {
-        return res.status(400).json({ error: 'Invalid JSON payload.' });
+        return res.status(400).json({ error: 'Payload parse error.' });
     }
 
     if (libraryReadAccess && messages.length > 0) {
@@ -38,85 +32,76 @@ jf.routes.post('/chat', function(req, res) {
             var lastUserMessage = messages[messages.length - 1].content.toLowerCase();
             var contextMessage = "";
 
-            var searchTerms = ["about", "what is", "who is", "movie", "show", "series"];
-            var shouldSearch = false;
-            for (var k = 0; k < searchTerms.length; k++) {
-                if (lastUserMessage.indexOf(searchTerms[k]) !== -1) {
-                    shouldSearch = true;
+            var mediaKeywords = ["movie", "show", "series", "watch", "about", "what is"];
+            var isMediaInquiry = false;
+            for (var i = 0; i < mediaKeywords.length; i++) {
+                if (lastUserMessage.indexOf(mediaKeywords[i]) !== -1) {
+                    isMediaInquiry = true;
                     break;
                 }
             }
 
-            if (shouldSearch || lastUserMessage.length > 10) {
-                var searchResults = jf.jellyfin.search(lastUserMessage, 3) || [];
-                
-                if (searchResults.length > 0) {
-                    contextMessage = "I found these items in your library that might be relevant: \n";
-                    for (var m = 0; m < searchResults.length; m++) {
-                        var item = searchResults[m];
-                        contextMessage += "- " + item.name + " (" + (item.productionYear || 'N/A') + "): " + 
-                                         (item.overview ? item.overview.substring(0, 200) + "..." : "No overview available.") + "\n";
-                        
-                        if (lastUserMessage.indexOf(item.name.toLowerCase()) !== -1) {
-                            contextMessage += "  Detailed Info: Rating: " + (item.officialRating || 'Unrated') + 
-                                             ", Genres: " + (item.genres ? item.genres.join(', ') : 'None') + ".\n";
-                        }
+            if (isMediaInquiry) {
+                var results = jf.jellyfin.search(lastUserMessage, 2) || [];
+                if (results.length > 0) {
+                    contextMessage = "Library Context: ";
+                    for (var j = 0; j < results.length; j++) {
+                        var item = results[j];
+                        contextMessage += "[" + item.name + " (" + (item.productionYear || "?") + "): " + 
+                                         (item.overview ? item.overview.substring(0, 150) + "..." : "No desc.") + "] ";
                     }
                 }
             }
 
-            if (contextMessage === "") {
-                var stats = jf.jellyfin.getItemCounts() || {};
-                contextMessage = "LIBRARY STATS: The user has " + (stats.movieCount || 0) + " movies and " + (stats.seriesCount || 0) + " series.";
+            if (contextMessage) {
+                messages.splice(messages.length - 1, 0, { 
+                    role: 'system', 
+                    content: "Use this local library data to assist: " + contextMessage 
+                });
             }
-
-            messages.splice(messages.length - 1, 0, { 
-                role: 'system', 
-                content: "INTERNAL LIBRARY DATA: " + contextMessage + "\nAnswer the user using this data if it matches their query." 
-            });
-
         } catch (ragErr) {
-            jf.log.warn('Intent-RAG failed: ' + ragErr.message);
+            jf.log.warn('RAG Error: ' + ragErr.message);
         }
     }
 
     var payload = {
         model: modelName,
         messages: messages,
-        temperature: 0.7
+        temperature: 0.7,
+        max_tokens: 1024
     };
 
     var options = {
         headers: {
             'Authorization': 'Bearer ' + apiKey,
             'Content-Type': 'application/json',
-            'X-Title': 'JellyAssistant Mod'
+            'X-Title': 'JellyAssistant'
         },
-        timeout: 25000 
+        timeout: 18000
     };
 
     try {
         var r = jf.http.post(apiUrl, JSON.stringify(payload), options);
 
         if (!r.ok) {
-            var detail = 'Status ' + r.status;
+            var errText = 'Provider Error ' + r.status;
             try {
                 var errObj = r.json();
-                if (errObj && errObj.error) {
-                    detail = typeof errObj.error === 'string' ? errObj.error : (errObj.error.message || detail);
-                }
-            } catch(e) {
-                detail = r.body || detail;
-            }
-            return res.status(r.status).json({ error: 'OpenRouter Error: ' + detail });
+                errText = (errObj && errObj.error && errObj.error.message) ? errObj.error.message : r.body;
+            } catch(e) {}
+            return res.status(r.status).json({ error: errText });
         }
 
         return res.json(r.json());
     } catch (err) {
-        return res.status(500).json({ error: 'Proxy Exception: ' + err.message });
+        jf.log.error('Chat Request Failed: ' + err.message);
+        if (err.message.indexOf('timeout') !== -1) {
+            return res.status(504).json({ error: 'The AI provider took too long to respond. Try again or check your API status.' });
+        }
+        return res.status(500).json({ error: 'Assistant error: ' + err.message });
     }
 });
 
 jf.onStop(function() {
-    jf.log.info('JellyAssistant mod stopped.');
+    jf.log.info('JellyAssistant stopped.');
 });

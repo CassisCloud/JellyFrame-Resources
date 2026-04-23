@@ -167,7 +167,7 @@ function getAvailableSkins() {
             cssUrl: '',
             colorSchemes: []
         },
-        {
+        /*{
             id: 'ultrachromic',
             name: 'Ultrachromic',
             description: 'Dark theme with customizable accent color',
@@ -177,7 +177,7 @@ function getAvailableSkins() {
                 { id: 'kaleidochromic', name: 'Kaleidochromic', cssUrl: 'https://cdn.jsdelivr.net/gh/CTalvio/Ultrachromic/presets/kaleidochromic_preset.css' },
                 { id: 'Novachromic', name: 'Novachromic', cssUrl: 'https://cdn.jsdelivr.net/gh/CTalvio/Ultrachromic/presets/novachromic_preset.css' }
             ]
-        },
+        },*/
         {
             id: 'elegant-fin',
             name: 'ElegantFin',

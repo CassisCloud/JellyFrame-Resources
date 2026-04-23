@@ -156,7 +156,7 @@ function getAvailableSkins() {
     var adminSkinsRaw = jf.store.get('adminSkins');
     var adminSkins = [];
     if (adminSkinsRaw) {
-        try { adminSkins = JSON.parse(adminSkinsRaw); } catch (e) {}
+        try { adminSkins = JSON.parse(adminSkinsRaw); } catch (e) { }
     }
     // Built-in community skins
     var builtIn = [
@@ -173,16 +173,23 @@ function getAvailableSkins() {
             description: 'Dark theme with customizable accent color',
             cssUrl: 'https://cdn.jsdelivr.net/gh/CTalvio/Ultrachromic/base.css',
             colorSchemes: [
-                { id: 'hotpink', name: 'Hot Pink', cssUrl: 'https://cdn.jsdelivr.net/gh/CTalvio/Ultrachromic/accentcolor/hotpink.css' },
-                { id: 'pinkred', name: 'Pink Red', cssUrl: 'https://cdn.jsdelivr.net/gh/CTalvio/Ultrachromic/accentcolor/pinkred.css' },
-                { id: 'blue', name: 'Blue', cssUrl: 'https://cdn.jsdelivr.net/gh/CTalvio/Ultrachromic/accentcolor/blue.css' }
+                { id: 'monochromic', name: 'Monochromic', cssUrl: 'https://cdn.jsdelivr.net/gh/CTalvio/Ultrachromic/presets/monochromic_preset.css' },
+                { id: 'kaleidochromic', name: 'Kaleidochromic', cssUrl: 'https://cdn.jsdelivr.net/gh/CTalvio/Ultrachromic/presets/kaleidochromic_preset.css' },
+                { id: 'Novachromic', name: 'Novachromic', cssUrl: 'https://cdn.jsdelivr.net/gh/CTalvio/Ultrachromic/presets/novachromic_preset.css' }
             ]
         },
         {
-            id: 'jf-metro',
-            name: 'JF Metro',
-            description: 'Flat, minimal Windows-Metro-inspired theme',
-            cssUrl: 'https://cdn.jsdelivr.net/gh/Lhinor/JF-Metro/JF-Metro.css',
+            id: 'elegant-fin',
+            name: 'ElegantFin',
+            description: 'ElegantFin gives Jellyfin a fresh, modern look, and it aims to work on mobile, desktop, and TV, with just one import.',
+            cssUrl: 'https://cdn.jsdelivr.net/gh/lscambo13/ElegantFin@main/Theme/ElegantFin-jellyfin-theme-build-latest-minified.css',
+            colorSchemes: []
+        },
+        {
+            id: 'better-ui',
+            name: 'Better UI',
+            description: 'A modern UI enhancement theme for Jellyfin focused on cleaner layout, smoother animations, and ios like design.',
+            cssUrl: 'https://cdn.jsdelivr.net/gh/tromoSM/better-jellyfin-ui@main/theme.css',
             colorSchemes: []
         }
     ];
@@ -223,14 +230,14 @@ jf.routes.post('/config', function (req, res) {
             var hs = body.homeSections;
             if (typeof hs === 'string') { hs = JSON.parse(hs); }
             cfg.homeSections = hs;
-        } catch (e) {}
+        } catch (e) { }
     }
     if (body.navLinks) {
         try {
             var nl = body.navLinks;
             if (typeof nl === 'string') { nl = JSON.parse(nl); }
             cfg.navLinks = nl;
-        } catch (e) {}
+        } catch (e) { }
     }
     if (body.search) {
         if (body.search.jellyseerrEnabled !== undefined) { cfg.search.jellyseerrEnabled = !!body.search.jellyseerrEnabled; }
@@ -285,7 +292,7 @@ jf.routes.post('/config/import', function (req, res) {
             if (typeof items === 'string') { items = JSON.parse(items); }
             wl.items = items;
             saveWatchlist(uid, wl);
-        } catch (e) {}
+        } catch (e) { }
     }
     return res.json({ ok: true });
 });

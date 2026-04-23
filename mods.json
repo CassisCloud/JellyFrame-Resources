@@ -1,5 +1,39 @@
 [
   {
+    "id": "jelly-assistant",
+    "name": "JellyAssistant",
+    "author": "grimmdev",
+    "description": "High-speed free AI chat via OpenRouter. Use :free models for no-cost chatting.",
+    "version": "1.0.0",
+    "jellyfin": "10.11+",
+    "tags": ["ui", "ai", "free", "openrouter", "assistant"],
+    "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jelly-assistant.png",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jelly-assistant-client.js",
+    "serverJs": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jelly-assistant-server.js",
+    "permissions": ["http", "jellyfin.read"],
+    "requires": [],
+    "vars": [
+      {
+        "key": "API_URL",
+        "name": "OpenRouter API URL",
+        "type": "text",
+        "default": "https://openrouter.ai/api/v1/chat/completions"
+      },
+      {
+        "key": "API_KEY",
+        "name": "OpenRouter API Key",
+        "type": "text",
+        "default": ""
+      },
+      {
+        "key": "MODEL",
+        "name": "Model Name",
+        "type": "text",
+        "default": "openrouter/free"
+      }
+    ]
+  },
+  {
     "id": "smart-recommendations",
     "name": "Smart Recommendations",
     "author": "grimmdev",

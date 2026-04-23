@@ -4,7 +4,7 @@
     "name": "JellyAssistant",
     "author": "grimmdev",
     "description": "High-speed free AI chat via OpenRouter. Use :free models for no-cost chatting.",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "jellyfin": "10.11+",
     "tags": ["ui", "ai", "free", "openrouter", "assistant"],
     "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jelly-assistant.png",

@@ -158,7 +158,7 @@ When a mod is hot-reloaded, JellyFrame:
 3. Disposes the old Jint engine and all per-mod surfaces (store handles, timers, scheduler tasks, webhooks, event bus subscriptions, RPC handlers).
 4. Constructs a brand-new Jint engine with a fresh memory counter and runs the new script.
 
-Consequence: persistent `jf.store` / `jf.userStore` / `jf.kv` values survive hot reload; in-memory `jf.cache` entries do not.
+Consequence: persistent `jf.store` / `jf.userStore` / `jf.kv` / `jf.db` values survive hot reload; in-memory `jf.cache` entries do not.
 
 ---
 
@@ -176,6 +176,7 @@ Consequence: persistent `jf.store` / `jf.userStore` / `jf.kv` values survive hot
 | `"jellyfin.admin"` | jf.jellyfin session/user admin methods |
 | `"store"` | jf.store and jf.userStore |
 | `"shared-store"` | jf.kv (cross-mod shared key-value store) |
+| `"db"` | jf.db (SQLite database — persistent, structured, per-mod namespaced) |
 | `"scheduler"` | jf.scheduler |
 | `"webhooks"` | jf.webhooks |
 | `"rpc"` | jf.rpc |
@@ -200,6 +201,7 @@ jf.jellyfin    - Jellyfin API                [permission: jellyfin.read / jellyf
 jf.store       - persistent per-mod storage  [permission: store]
 jf.userStore   - per-user persistent storage [permission: store]
 jf.kv          - cross-mod shared storage    [permission: shared-store]
+jf.db          - SQLite database             [permission: db]
 jf.scheduler   - intervals and cron          [permission: scheduler]
 jf.bus         - cross-mod event bus         [permission: bus]
 jf.webhooks    - inbound/outbound webhooks   [permission: webhooks]
@@ -336,6 +338,185 @@ jf.kv.get('other-mod:key')     // -> string | null  (fully-qualified cross-mod r
 jf.kv.delete(key)              // delete own key
 jf.kv.keys()                   // -> string[]  own keys without namespace prefix
 jf.kv.allKeys()                // -> string[]  ALL keys across all mods, with prefixes
+```
+
+---
+
+## jf.db — SQLite database
+
+Requires `"db"` permission. All mods share a single backing file at `{DataPath}/JellyFrame/jellyframe.db`. Tables are automatically namespaced with `{modId}__` so mods cannot see or query each other's tables. From the mod's perspective, this is a private database — the prefix is invisible.
+
+Data survives restarts and hot-reloads. The database uses WAL mode for concurrent reads.
+
+Three levels of API:
+
+### 1. Table helpers (no SQL required — covers the 80% case)
+
+```js
+// Get a table handle. Table is created lazily on first write.
+var t = jf.db.table('ratings');
+
+// Insert a row. Table and columns are created automatically from the object's shape.
+// New columns added to later inserts are ALTER TABLE'd in automatically.
+t.insert({ itemId: 'abc123', rating: 7.5, note: 'great' });
+// -> { rowsAffected: 1, lastInsertId: <number> }
+
+// Upsert: insert or update. 'on' names the conflict column(s).
+t.upsert({ itemId: 'abc123', rating: 9.0 }, { on: ['itemId'] });
+// Without 'on', falls back to INSERT OR REPLACE (primary-key conflict).
+t.upsert({ itemId: 'abc123', rating: 9.0 });
+
+// Find rows matching a filter (plain equality).
+t.find({ rating: 7.5 });           // -> object[]
+t.findOne({ itemId: 'abc123' });   // -> object | null
+
+// Update matching rows.
+t.update({ itemId: 'abc123' }, { rating: 8.0 });
+// -> { rowsAffected: <number>, lastInsertId: <number> }
+
+// Delete matching rows. Omit filter to delete all rows.
+t.delete({ itemId: 'abc123' });
+// -> { rowsAffected: <number>, lastInsertId: <number> }
+
+// Count rows matching a filter. Omit filter to count all.
+t.count({ rating: 7.5 });    // -> number
+t.count();                   // -> number
+
+// Fetch all rows.
+t.all();                     // -> object[]  (same as t.find())
+
+// Inspect the table.
+t.columns();                 // -> string[]  column names, or [] if table doesn't exist
+t.drop();                    // -> boolean   drops the table; false if it didn't exist
+
+// Top-level table management (no table handle needed).
+jf.db.tables();              // -> string[]  list of this mod's tables (without prefix)
+jf.db.hasTable('ratings');   // -> boolean
+jf.db.dropTable('ratings');  // -> boolean
+```
+
+### 2. Query builder (structured where-clauses, no raw SQL)
+
+```js
+jf.db.query('ratings')
+     .where({ rating: { gt: 7 } })
+     .orderBy('rating', 'desc')
+     .limit(20)
+     .select(['itemId', 'rating'])   // optional column subset; default is *
+     .run();                         // -> object[]
+
+jf.db.query('ratings').where({ rating: { gt: 7 } }).count();   // -> number
+jf.db.query('ratings').where({ itemId: 'abc123' }).first();    // -> object | null
+```
+
+Supported where operators (use as `{ column: { op: value } }`):
+
+| Operator | SQL equivalent | Example |
+|---|---|---|
+| `eq` | `=` | `{ rating: { eq: 7.5 } }` |
+| `ne` | `<>` | `{ rating: { ne: 0 } }` |
+| `gt` | `>` | `{ rating: { gt: 7 } }` |
+| `gte` | `>=` | `{ rating: { gte: 7 } }` |
+| `lt` | `<` | `{ rating: { lt: 5 } }` |
+| `lte` | `<=` | `{ rating: { lte: 5 } }` |
+| `like` | `LIKE` | `{ note: { like: '%great%' } }` |
+| `in` | `IN (...)` | `{ rating: { in: [7, 8, 9] } }` |
+| `between` | `BETWEEN a AND b` | `{ rating: { between: [5, 9] } }` |
+| `isnull` | `IS NULL` / `IS NOT NULL` | `{ note: { isnull: true } }` |
+| `notnull` | `IS NOT NULL` | `{ note: { notnull: true } }` |
+
+Plain equality shorthand (no operator object) also works in `where`:
+```js
+.where({ rating: 7.5 })        // rating = 7.5
+.where({ note: null })         // note IS NULL
+```
+
+### 3. Raw SQL escape hatch
+
+Use only when the helpers cannot express what you need. Raw SQL is validated: `ATTACH`, `DETACH`, and most `PRAGMA` statements are rejected. Every table reference must use the fully-prefixed internal name — use `jf.db.exec` / `jf.db.queryRaw` for introspection queries, but for data queries prefer the table helpers which apply the prefix automatically.
+
+```js
+// Execute a statement that returns no rows (DDL, INSERT, UPDATE, DELETE).
+// Parameters are positional: use ? in SQL, pass a JS array.
+jf.db.exec('CREATE INDEX IF NOT EXISTS idx_rating ON mymod__ratings (rating)', []);
+
+// Execute and return { rowsAffected, lastInsertId }.
+var r = jf.db.run('DELETE FROM mymod__ratings WHERE rating < ?', [5]);
+
+// SELECT — returns object[].
+var rows = jf.db.queryRaw('SELECT * FROM mymod__ratings WHERE rating > ?', [7]);
+
+// Named parameters — pass an object (or a JS object literal).
+var rows = jf.db.queryRaw(
+    'SELECT * FROM mymod__ratings WHERE rating > @min AND rating < @max',
+    { min: 5, max: 9 }
+);
+
+// Wrap multiple statements in a single atomic transaction.
+// Commits on success; rolls back if the function throws.
+// Uses BEGIN IMMEDIATE (write lock acquired up front).
+jf.db.transaction(function() {
+    jf.db.table('ratings').insert({ itemId: 'x', rating: 7 });
+    jf.db.table('ratings').insert({ itemId: 'y', rating: 8 });
+});
+
+// Allowed PRAGMA statements in raw SQL: table_info, index_list, index_info,
+// foreign_key_list, user_version. All others are rejected.
+var cols = jf.db.queryRaw('PRAGMA table_info(mymod__ratings)', []);
+```
+
+### Column type inference
+
+When `insert` / `upsert` auto-creates or alters a table, column types are inferred from the first JS value supplied:
+
+| JS type | SQLite type |
+|---|---|
+| boolean | INTEGER (0 or 1) |
+| integer number | INTEGER |
+| float number | REAL |
+| string | TEXT |
+| null / undefined | TEXT |
+| byte array | BLOB |
+
+### Notes and constraints
+
+- Table and column names must match `[A-Za-z_][A-Za-z0-9_]*` — letters, digits, underscores only; must not start with a digit.
+- Values stored via table helpers can be any JS type (string, number, boolean, null). Values are NOT required to be strings (unlike jf.store / jf.kv).
+- `find()` / `findOne()` / `query().run()` return plain JS objects with dot-access and `JSON.stringify` support.
+- If a table does not exist, `find()`, `findOne()`, `count()`, `all()`, and `query().run()` return `[]` / `null` / `0` rather than throwing.
+- `jf.db` data persists across hot-reloads and Jellyfin restarts (unlike `jf.cache`).
+- Never build raw SQL strings from untrusted input (req.body, req.query, webhook payloads, etc.). Use parameterised queries or the table helpers.
+
+### Complete jf.db example
+
+```js
+jf.onStart(function() {
+    // Table is created on first insert; no schema declaration needed.
+    var t = jf.db.table('plays');
+
+    jf.jellyfin.on('playback.stopped', function(data) {
+        if (!data.playedToEnd) {
+            return;
+        }
+        t.upsert(
+            { itemId: data.itemId, userId: data.userId, playCount: 1, lastPlayed: new Date().toISOString() },
+            { on: ['itemId', 'userId'] }
+        );
+    });
+
+    jf.routes.get('/top', function(req, res) {
+        var rows = jf.db.query('plays')
+            .where({ playCount: { gt: 0 } })
+            .orderBy('playCount', 'desc')
+            .limit(10)
+            .run();
+        return res.json({ items: rows });
+    });
+});
+
+jf.onStop(function() {
+    jf.jellyfin.off('playback.stopped');
+});
 ```
 
 ---
@@ -1065,7 +1246,7 @@ mods.json entry:
 
 1. Always bump version when changing any asset file.
 2. serverJs vars use jf.vars['KEY'], not {{KEY}}.
-3. All jf.store / jf.userStore / jf.kv values are strings - String() before set, parse after get.
+3. All jf.store / jf.userStore / jf.kv values are strings - String() before set, parse after get. jf.db values are NOT restricted to strings - store numbers, booleans, and null natively.
 4. jf.jellyfin.* returns CLR-wrapped objects - they do NOT count against the 256 MB Jint memory budget.
 5. Event handlers must be void - do not return from jf.jellyfin.on() callbacks.
 6. Clean up in jf.onStop: cancelAll(), offAll(), jf.jellyfin.off() per event name, webhooks.unregister() per hook.
@@ -1090,3 +1271,7 @@ mods.json entry:
 25. jf.fs and jf.os are unsandboxed and run with the full privileges of the Jellyfin process. Never build command strings or file paths from untrusted input (req.body, req.query, webhook payloads, etc.).
 26. jf.os.exec goes through the system shell (`cmd.exe /c` on Windows, `/bin/sh -c` elsewhere) — shell metacharacters in the command string are interpreted.
 27. The 256 MB Jint memory budget is cumulative allocations over the engine's lifetime, not live heap. It resets on hot-reload and on Jellyfin restart; GC does not reclaim against it.
+28. jf.db table and column names must match [A-Za-z_][A-Za-z0-9_]* — letters, digits, underscores only; must not start with a digit.
+29. jf.db raw SQL (exec/run/queryRaw) must only reference tables belonging to this mod (prefixed with {modId}__). Cross-mod table references and ATTACH/DETACH are rejected. Use the table helpers instead — they apply the prefix automatically.
+30. Never build jf.db raw SQL strings from untrusted input. Use parameterised queries (? positional or @name named) or the table helpers.
+31. jf.db.transaction() uses BEGIN IMMEDIATE — write lock is acquired up front. Do not nest transactions.

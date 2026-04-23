@@ -1,40 +1,16 @@
 [
   {
-    "id": "kefinframe",
-    "name": "KefinFrame",
+    "id": "jellyfin-social",
+    "name": "Jellyfin Social",
     "author": "grimmdev",
-    "description": "A comprehensive Jellyfin enhancement suite: per-user watchlist, skin/appearance switcher, custom home screen sections, enhanced keyboard search, and custom navigation links. Inspired by KefinTweaks, rebuilt natively for JellyFrame.",
+    "description": "A social network timeline for your Jellyfin server where users can share thoughts and automatically log finished watches.",
     "version": "1.0.0",
-    "jellyfin": "10.11+",
-    "tags": ["ui", "server", "watchlist", "search", "home", "skins"],
-    "sourceUrl": "",
-    "previewUrl": "",
-    "cssUrl": null,
-    "jsUrl": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/kefinframe-client.js",
-    "serverJs": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/kefinframe-server.js",
-    "permissions": [
-      "jellyfin.read",
-      "jellyfin.write",
-      "store",
-      "scheduler"
-    ],
-    "requires": [],
-    "vars": [
-      {
-        "key": "ACCENT_COLOR",
-        "name": "Accent Color",
-        "description": "Primary highlight color used in the KefinFrame UI panels.",
-        "type": "color",
-        "default": "#00a4dc",
-        "allowGradient": false
-      }
-    ],
-    "changelog": [
-      {
-        "version": "1.0.0",
-        "date": "2025-04-22",
-        "notes": "Initial release. Features: per-user watchlist (bookmark toggle on all cards), skin/appearance switcher in header, custom home screen sections, enhanced search overlay (/ or Ctrl+K), custom nav links, settings panel with export/import/reset."
-      }
-    ]
+    "jellyfin": "10.10+",
+    "tags": ["social", "ui", "server"],
+    "cssUrl": "",
+    "jsUrl": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/jellyfin-social-client.js",
+    "serverJs": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/jellyfin-social-server.js",
+    "permissions": ["jellyfin.read", "db"],
+    "vars": []
   }
 ]

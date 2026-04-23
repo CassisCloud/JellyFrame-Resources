@@ -32,6 +32,9 @@ jf.routes.post('/chat', function(req, res) {
             var lastUserMessage = messages[messages.length - 1].content.toLowerCase();
             var contextMessage = "";
 
+            var stats = jf.jellyfin.getItemCounts() || {};
+            var statsContext = "User Library Stats: " + (stats.movieCount || 0) + " movies, " + (stats.seriesCount || 0) + " series. ";
+
             var mediaKeywords = ["movie", "show", "series", "watch", "about", "what is"];
             var isMediaInquiry = false;
             for (var i = 0; i < mediaKeywords.length; i++) {
@@ -41,22 +44,25 @@ jf.routes.post('/chat', function(req, res) {
                 }
             }
 
+            var itemContext = "";
             if (isMediaInquiry) {
                 var results = jf.jellyfin.search(lastUserMessage, 2) || [];
                 if (results.length > 0) {
-                    contextMessage = "Library Context: ";
+                    itemContext = "Relevant Items found: ";
                     for (var j = 0; j < results.length; j++) {
                         var item = results[j];
-                        contextMessage += "[" + item.name + " (" + (item.productionYear || "?") + "): " + 
+                        itemContext += "[" + item.name + " (" + (item.productionYear || "?") + "): " + 
                                          (item.overview ? item.overview.substring(0, 150) + "..." : "No desc.") + "] ";
                     }
                 }
             }
 
+            contextMessage = statsContext + itemContext;
+
             if (contextMessage) {
                 messages.splice(messages.length - 1, 0, { 
                     role: 'system', 
-                    content: "Use this local library data to assist: " + contextMessage 
+                    content: "Use this local library data to assist the user: " + contextMessage 
                 });
             }
         } catch (ragErr) {
@@ -68,7 +74,7 @@ jf.routes.post('/chat', function(req, res) {
         model: modelName,
         messages: messages,
         temperature: 0.7,
-        max_tokens: 1024
+        max_tokens: 1024 
     };
 
     var options = {
@@ -77,7 +83,7 @@ jf.routes.post('/chat', function(req, res) {
             'Content-Type': 'application/json',
             'X-Title': 'JellyAssistant'
         },
-        timeout: 18000
+        timeout: 18000 
     };
 
     try {
@@ -96,7 +102,7 @@ jf.routes.post('/chat', function(req, res) {
     } catch (err) {
         jf.log.error('Chat Request Failed: ' + err.message);
         if (err.message.indexOf('timeout') !== -1) {
-            return res.status(504).json({ error: 'The AI provider took too long to respond. Try again or check your API status.' });
+            return res.status(504).json({ error: 'The AI provider took too long to respond.' });
         }
         return res.status(500).json({ error: 'Assistant error: ' + err.message });
     }

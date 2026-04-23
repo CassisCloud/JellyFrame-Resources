@@ -4,9 +4,10 @@
     "name": "JellyAssistant",
     "author": "grimmdev",
     "description": "High-speed free AI chat via OpenRouter. Use :free models for no-cost chatting.",
-    "version": "1.4.0",
+    "version": "1.0.2",
     "jellyfin": "10.11+",
     "tags": ["ui", "ai", "free", "openrouter", "assistant"],
+    "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jelly-assistant.png",
     "jsUrl": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/jelly-assistant-client.js",
     "serverJs": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/jelly-assistant-server.js",
     "permissions": ["http", "jellyfin.read"],
@@ -29,6 +30,15 @@
         "name": "Model Name",
         "type": "text",
         "default": "openrouter/free"
+      },
+      {
+        "key": "ENABLE_LIBRARY_READ_ACCESS",
+        "name": "Enable Library Read Access",
+        "description": "Allows the AI to read your library stats and latest items to provide personalized answers.",
+        "type": "boolean",
+        "default": "false",
+        "trueValue": "1",
+        "falseValue": "0"
       }
     ]
   }

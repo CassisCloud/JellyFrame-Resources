@@ -1,25 +1,26 @@
 [
   {
-    "id": "jelly-grok",
-    "name": "JellyGrok Assistant",
+    "id": "jelly-assistant",
+    "name": "JellyAssistant",
     "author": "grimmdev",
-    "description": "High-speed AI chat using xAI's Grok 4.20 non-reasoning model.",
-    "version": "1.0.0",
+    "description": "High-speed free AI chat via OpenRouter. Use :free models for no-cost chatting.",
+    "version": "1.4.0",
     "jellyfin": "10.11+",
-    "tags": ["ui", "grok", "ai"],
-    "jsUrl": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/jelly-grok-client.js",
-    "serverJs": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/jelly-grok-server.js",
-    "permissions": ["http"],
+    "tags": ["ui", "ai", "free", "openrouter", "assistant"],
+    "jsUrl": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/jelly-assistant-client.js",
+    "serverJs": "https://raw.githubusercontent.com/Jellyfin-PG/JellyFrame-Resources/refs/heads/main/mods/jelly-assistant-server.js",
+    "permissions": ["http", "jellyfin.read"],
+    "requires": [],
     "vars": [
       {
         "key": "API_URL",
-        "name": "xAI API URL",
+        "name": "OpenRouter API URL",
         "type": "text",
-        "default": "https://api.x.ai/v1/chat/completions"
+        "default": "https://openrouter.ai/api/v1/chat/completions"
       },
       {
         "key": "API_KEY",
-        "name": "xAI API Key",
+        "name": "OpenRouter API Key",
         "type": "text",
         "default": ""
       },
@@ -27,7 +28,7 @@
         "key": "MODEL",
         "name": "Model Name",
         "type": "text",
-        "default": "grok-4.20-0309-non-reasoning"
+        "default": "openrouter/free"
       }
     ]
   }

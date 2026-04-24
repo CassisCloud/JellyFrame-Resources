@@ -1,5 +1,21 @@
 [
   {
+    "id": "coming-up-show",
+    "name": "Episodes Coming Up",
+    "author": "ShadowZer0",
+    "description": "A custom tab for Jellyfin that opens a 'Coming Up' popup directly on the home screen — styled with a sleek glassmorphism effect to perfectly match the Ultrachromic theme.",
+    "version": "1.0.0",
+    "jellyfin": "10.10+",
+    "tags": ["schedule", "shows", "server"],
+    "cssUrl": "",
+    "sourceUrl": "https://github.com/Zer0JellyHub/Calendar",
+    "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/coming-up-show.png",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/coming-up-show-client.js",
+    "serverJs": "",
+    "permissions": ["jellyfin.read"],
+    "vars": []
+  },
+  {
     "id": "jellyfin-social",
     "name": "Jellyfin Social",
     "author": "grimmdev",

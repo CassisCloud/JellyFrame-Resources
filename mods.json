@@ -1,5 +1,29 @@
 [
   {
+    "id": "logo-replacer",
+    "name": "Logo Replacer",
+    "author": "grimmdev",
+    "description": "A mod that replaces the jellyfin logo with whatever you want.",
+    "version": "1.0.0",
+    "jellyfin": "10.10+",
+    "tags": ["logo"],
+    "cssUrl": "",
+    "sourceUrl": "",
+    "previewUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/logo-replacer.png",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/logo-replacer-client.js",
+    "serverJs": "",
+    "permissions": [],
+    "vars": [
+      {
+        "key": "CUSTOM_LOGO_URL",
+        "name": "Custom Logo URL",
+        "description": "Direct link to your custom logo image (PNG/SVG/WebP).",
+        "type": "text",
+        "default": ""
+      }
+    ]
+  },
+  {
     "id": "version-player",
     "name": "Player Versions",
     "author": "ShadowZer0",

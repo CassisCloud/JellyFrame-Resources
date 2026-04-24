@@ -27,34 +27,26 @@
             closeContainer.style.padding = '8px 16px 0 0';
 
             const closeBtn = document.createElement('button');
-            closeBtn.className = 'paper-icon-button-light emby-button btnCloseMenu'; 
+            closeBtn.type = 'button';
+            closeBtn.setAttribute('is', 'paper-icon-button-light');
+            closeBtn.className = 'headerButton mainDrawerButton barsMenuButton headerButtonLeft paper-icon-button-light btnCloseMenu'; 
             closeBtn.title = 'Close Menu';
             
-            closeBtn.style.background = 'transparent';
-            closeBtn.style.border = 'none';
-            closeBtn.style.color = 'inherit';
-            closeBtn.style.cursor = 'pointer';
-            closeBtn.style.padding = '8px';
-            closeBtn.style.margin = '0';
-            closeBtn.style.borderRadius = '50%';
-            closeBtn.style.display = 'flex';
-            closeBtn.style.alignItems = 'center';
-            closeBtn.style.justifyContent = 'center';
-            
-            closeBtn.innerHTML = '<span class="material-icons" aria-hidden="true" style="font-size: 24px;">close</span>';
+            closeBtn.innerHTML = '<span class="material-icons" aria-hidden="true">close</span>';
             
             closeBtn.addEventListener('click', (e) => {
                 e.preventDefault();
+                e.stopPropagation(); 
                 
                 const backdrop = document.querySelector('.mainDrawer-backdrop, .drawer-backdrop');
                 if (backdrop) {
                     backdrop.click();
+                    return;
                 }
                 
-                const drawer = closeBtn.closest('.mainDrawer') || document.querySelector('.mainDrawer');
-                if (drawer) {
-                    drawer.classList.remove('drawer-open');
-                    drawer.style.transform = 'none';
+                const menuToggle = document.querySelector('.btnApplicationMenu, .btnHeaderMenu, .mainDrawerButton:not(.btnCloseMenu)');
+                if (menuToggle) {
+                    menuToggle.click();
                 }
             });
             

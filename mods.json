@@ -4,7 +4,7 @@
     "name": "Left Menu Framework",
     "author": "grimmdev",
     "description": "A mod that cleans up the left menu.",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "jellyfin": "10.10+",
     "tags": ["menus"],
     "cssUrl": "",

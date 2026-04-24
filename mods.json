@@ -1,5 +1,21 @@
 [
   {
+    "id": "left-menu-framework",
+    "name": "Left Menu Framework",
+    "author": "grimmdev",
+    "description": "A mod that cleans up the left menu.",
+    "version": "1.0.0",
+    "jellyfin": "10.10+",
+    "tags": ["menus"],
+    "cssUrl": "",
+    "sourceUrl": "",
+    "previewUrl": "",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/left-menu-framework-client.js",
+    "serverJs": "",
+    "permissions": [],
+    "vars": []
+  },
+  {
     "id": "logo-replacer",
     "name": "Logo Replacer",
     "author": "grimmdev",

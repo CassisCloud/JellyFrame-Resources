@@ -158,7 +158,7 @@ When a mod is hot-reloaded, JellyFrame:
 3. Disposes the old Jint engine and all per-mod surfaces (store handles, timers, scheduler tasks, webhooks, event bus subscriptions, RPC handlers).
 4. Constructs a brand-new Jint engine with a fresh memory counter and runs the new script.
 
-Consequence: persistent `jf.store` / `jf.userStore` / `jf.kv` / `jf.db` values survive hot reload; in-memory `jf.cache` entries do not.
+Consequence: persistent `jf.store` / `jf.userStore` / `jf.kv` / `jf.db` values survive hot reload; in-memory `jf.cache` entries do not (unless the entry was written with `persist=true` — see jf.cache).
 
 ---
 
@@ -177,6 +177,7 @@ Consequence: persistent `jf.store` / `jf.userStore` / `jf.kv` / `jf.db` values s
 | `"store"` | jf.store and jf.userStore |
 | `"shared-store"` | jf.kv (cross-mod shared key-value store) |
 | `"db"` | jf.db (SQLite database — persistent, structured, per-mod namespaced) |
+| `"db.shared"` | jf.sharedDb (shared cross-mod SQLite — tables have NO automatic prefix; all mods with this permission share the same table namespace) |
 | `"scheduler"` | jf.scheduler |
 | `"webhooks"` | jf.webhooks |
 | `"rpc"` | jf.rpc |
@@ -193,7 +194,7 @@ Always available without permission: `jf.vars`, `jf.log`, `jf.cache`, `jf.routes
 ```
 jf.vars        - { KEY: "value", ... }  read-only, always strings
 jf.log         - logging + recent log retrieval
-jf.cache       - in-memory TTL cache (lost on restart)
+jf.cache       - in-memory TTL cache (optionally persistent — see jf.cache)
 jf.perms       - permission introspection
 jf.routes      - HTTP route registration
 jf.http        - outbound HTTP                [permission: http]
@@ -201,7 +202,8 @@ jf.jellyfin    - Jellyfin API                [permission: jellyfin.read / jellyf
 jf.store       - persistent per-mod storage  [permission: store]
 jf.userStore   - per-user persistent storage [permission: store]
 jf.kv          - cross-mod shared storage    [permission: shared-store]
-jf.db          - SQLite database             [permission: db]
+jf.db          - SQLite database (namespaced) [permission: db]
+jf.sharedDb    - SQLite database (shared, no prefix) [permission: db.shared]
 jf.scheduler   - intervals and cron          [permission: scheduler]
 jf.bus         - cross-mod event bus         [permission: bus]
 jf.webhooks    - inbound/outbound webhooks   [permission: webhooks]
@@ -236,17 +238,25 @@ var entries = jf.log.getRecent(50);  // -> [{ level, message, time }, ...]
 
 ## jf.cache
 
-In-memory only. Lost on restart. Values can be any type.
+In-memory by default. Values can be any type. Optionally backed by `jf.store` for persistence across restarts (requires `"store"` permission to be declared).
 
 ```js
 jf.cache.set(key, value)
 jf.cache.set(key, value, ttlMs)
-jf.cache.get(key)        // -> value | null
+jf.cache.set(key, value, ttlMs, true)   // persist=true: also writes to jf.store; survives restart
+jf.cache.set(key, value, 0, true)       // persist with no expiry (0 = no TTL)
+jf.cache.get(key)        // -> value | null  (loads from store on cache miss if persist=true was used)
 jf.cache.has(key)        // -> boolean
 jf.cache.delete(key)
 jf.cache.clear()
 jf.cache.count           // -> number of live entries
 ```
+
+When `persist=true`:
+- The value is serialised to JSON and stored in `jf.store` under an internal `__cache__` key prefix.
+- On a cache miss, `jf.cache.get()` checks the store automatically and rehydrates the in-memory entry.
+- Requires the `"store"` permission. If the mod lacks it, the in-memory entry is still written; the persist write is silently skipped.
+- `jf.cache.clear()` removes both in-memory and persisted entries.
 
 ---
 
@@ -342,7 +352,7 @@ jf.kv.allKeys()                // -> string[]  ALL keys across all mods, with pr
 
 ---
 
-## jf.db — SQLite database
+## jf.db — SQLite database (per-mod, namespaced)
 
 Requires `"db"` permission. All mods share a single backing file at `{DataPath}/JellyFrame/jellyframe.db`. Tables are automatically namespaced with `{modId}__` so mods cannot see or query each other's tables. From the mod's perspective, this is a private database — the prefix is invisible.
 
@@ -431,7 +441,33 @@ Plain equality shorthand (no operator object) also works in `where`:
 .where({ note: null })         // note IS NULL
 ```
 
-### 3. Raw SQL escape hatch
+### 3. Schema migrations
+
+```js
+// jf.db.migrate() runs a versioned migration array exactly once per version.
+// Each entry must have a unique integer 'version' and a 'up' function.
+// Versions are applied in order; already-applied versions are skipped.
+// Returns the number of migrations actually applied on this call.
+var applied = jf.db.migrate([
+    {
+        version: 1,
+        up: function() {
+            jf.db.exec('CREATE TABLE IF NOT EXISTS mymod__plays (itemId TEXT, userId TEXT, playCount INTEGER)', []);
+        }
+    },
+    {
+        version: 2,
+        up: function() {
+            jf.db.exec('ALTER TABLE mymod__plays ADD COLUMN lastPlayed TEXT', []);
+        }
+    }
+]);
+// applied -> number of migrations run (0 if all were already applied)
+```
+
+Note: `migrate()` is useful when you need precise schema control. For most use cases, the table helpers' automatic column creation is sufficient and requires no migration management.
+
+### 4. Raw SQL escape hatch
 
 Use only when the helpers cannot express what you need. Raw SQL is validated: `ATTACH`, `DETACH`, and most `PRAGMA` statements are rejected. Every table reference must use the fully-prefixed internal name — use `jf.db.exec` / `jf.db.queryRaw` for introspection queries, but for data queries prefer the table helpers which apply the prefix automatically.
 
@@ -521,6 +557,32 @@ jf.onStop(function() {
 
 ---
 
+## jf.sharedDb — shared cross-mod SQLite database
+
+Requires `"db.shared"` permission. Backed by the same `{DataPath}/JellyFrame/jellyframe.db` file as `jf.db`, but tables have **no automatic prefix**. All mods that declare `"db.shared"` share the same table namespace — choose table names carefully to avoid collisions.
+
+The API is identical to `jf.db` (table helpers, query builder, migrate, raw SQL, transaction). The only difference is the absence of the `{modId}__` prefix on table names.
+
+```js
+// Example: read from a shared table written by another mod
+var t = jf.sharedDb.table('global_ratings');
+var rows = t.find({ userId: '...' });
+
+// Schema migrations work the same way
+jf.sharedDb.migrate([
+    {
+        version: 1,
+        up: function() {
+            jf.sharedDb.exec('CREATE TABLE IF NOT EXISTS global_ratings (itemId TEXT, rating REAL)', []);
+        }
+    }
+]);
+```
+
+Use `jf.sharedDb` when multiple mods need to share structured data. Use `jf.kv` for simpler string-only cross-mod sharing.
+
+---
+
 ## jf.http
 
 Synchronous outbound HTTP. Blocks until response or timeout.
@@ -545,6 +607,19 @@ if (!r.ok) {
     return res.status(502).json({ error: 'upstream failed' });
 }
 var data = r.json();
+```
+
+### jf.http.fetchAsync() — fire-and-forget HTTP
+
+For non-blocking outbound requests where you don't need the response in the current call stack:
+
+```js
+jf.http.fetchAsync(url, options, callback)
+// callback(response) is called asynchronously when the request completes.
+// callback receives the same response object as the synchronous methods.
+// callback is optional — omit it for true fire-and-forget.
+// IMPORTANT: the callback runs outside Jint's statement counter thread.
+// Do not perform heavy computation or throw from the callback.
 ```
 
 ---
@@ -652,6 +727,11 @@ jf.jellyfin.getPlaylists(userId)             // -> playlist[]
 jf.jellyfin.getGenres(parentId?, userId?)    // -> [{ id, name, itemCount }]
 jf.jellyfin.getStudios(parentId?, userId?)   // -> [{ id, name, itemCount }]
 jf.jellyfin.getPerson(name)                  // -> item | null
+jf.jellyfin.getPersonDetails(name, userId?, filmographyLimit?)
+// -> { id, name, overview, birthDate, birthPlace, deathDate, imageTag, filmography: item[] } | null
+// filmographyLimit default 50. Returns richer data than getPerson() including full bio and filmography.
+jf.jellyfin.getItemPeople(itemId, type?)     // -> [{ name, role, type, sortOrder, personId, imageTag, overview, birthDate, birthPlace, deathDate }]
+// type: "Actor" | "Director" | "Writer" | "Producer" | "GuestStar" | null (all)
 jf.jellyfin.getPersonItems(personName, userId?, itemType?, limit?)  // -> item[]
 
 // --- Stats ---
@@ -942,9 +1022,6 @@ jf.jellyfin.createCollection(name, itemIds?) // -> collectionId string | null
 jf.jellyfin.addToCollection(collectionId, itemIds)  // -> boolean
 jf.jellyfin.createPlaylist(name, itemIds?, userId?) // -> playlistId string | null
 jf.jellyfin.addToPlaylist(playlistId, itemIds, userId?)  // -> boolean
-
-// --- Library ---
-jf.jellyfin.refreshLibrary()  // DEPRECATED alias — prefer jf.jellyfin.scanLibrary()
 ```
 
 ---
@@ -1013,19 +1090,82 @@ jf.jellyfin.cancelSeriesTimer(seriesTimerId)  // -> boolean
 
 ## jf.jellyfin — events
 
-Require `"jellyfin.read"`. Fire on Jellyfin domain events - no polling.
+Require `"jellyfin.read"`. Fire on Jellyfin domain events — no polling.
 
 ```js
-jf.jellyfin.on('item.added',       function(data) { });  // data.itemId, data.itemName, data.userId
-jf.jellyfin.on('item.updated',     function(data) { });
-jf.jellyfin.on('item.removed',     function(data) { });
-jf.jellyfin.on('playback.started', function(data) { });  // + data.sessionId, data.userName, data.itemName
-jf.jellyfin.on('playback.stopped', function(data) { });  // + data.positionTicks, data.playedToEnd
-jf.jellyfin.off('item.added');   // pass the event name string, not a subscription ID
+jf.jellyfin.on('event.name', function(data) { });
+jf.jellyfin.off('event.name');   // pass the event name string, not a subscription ID
 ```
 
 Event handlers MUST be void. Do not return a value from on() callbacks.
 Call jf.jellyfin.off('eventName') in jf.onStop for each registered event.
+
+### Supported events and their payloads
+
+**item.added**
+```
+data.itemId, data.itemName, data.itemType, data.path
+```
+
+**item.updated**
+```
+data.itemId, data.itemName, data.itemType
+```
+
+**item.removed**
+```
+data.itemId, data.itemName, data.itemType
+```
+
+**playback.started**
+```
+data.sessionId, data.userId, data.userName, data.itemId, data.itemName, data.itemType,
+data.clientName, data.deviceName, data.mediaSourceId, data.playSessionId
+```
+
+**playback.progress**
+```
+data.sessionId, data.userId, data.itemId, data.positionTicks, data.isPaused,
+data.mediaSourceId, data.playSessionId, data.isAutomated
+```
+
+**playback.stopped**
+```
+data.sessionId, data.userId, data.userName, data.itemId, data.itemName,
+data.positionTicks, data.playedToEnd, data.mediaSourceId, data.playSessionId
+```
+
+**user.data.changed** — fires when a user marks played, sets favourite, rates, etc.
+```
+data.userId, data.itemId, data.itemName, data.saveReason,
+data.played, data.isFavorite, data.rating, data.positionTicks, data.playCount
+```
+
+**session.started**
+```
+data.sessionId, data.userId, data.userName, data.client, data.deviceName,
+data.deviceId, data.remoteEndPoint
+```
+
+**session.ended**
+```
+data.sessionId, data.userId, data.userName, data.client, data.deviceName
+```
+
+**task.completed** — fires when any scheduled task finishes
+```
+data.taskName, data.taskId, data.status, data.startTime, data.endTime, data.errorMessage
+```
+
+**library.scan.completed** — fires additionally when a scan/library task completes
+```
+data.taskName, data.status, data.endTime
+```
+
+**metadata.refresh.completed** — fires additionally when a metadata/refresh task completes
+```
+data.taskName, data.status, data.endTime
+```
 
 ---
 
@@ -1046,9 +1186,11 @@ jf.scheduler.count                       // -> number of active tasks
 ```js
 var count = jf.bus.emit(eventName, data?)
 var subId = jf.bus.on(eventName, function(data, fromModId) { ... })
-jf.bus.off(subId)
-jf.bus.offAll()     // always call in jf.onStop
+jf.bus.off(subId)      // takes the subscription ID returned by jf.bus.on() — NOT an event name
+jf.bus.offAll()        // always call in jf.onStop
 ```
+
+Note: `jf.bus.off(subId)` takes the **subscription ID** returned by `jf.bus.on()`. This is different from `jf.jellyfin.off(eventName)` which takes an event name string. They are not interchangeable.
 
 ---
 
@@ -1246,7 +1388,7 @@ mods.json entry:
 
 1. Always bump version when changing any asset file.
 2. serverJs vars use jf.vars['KEY'], not {{KEY}}.
-3. All jf.store / jf.userStore / jf.kv values are strings - String() before set, parse after get. jf.db values are NOT restricted to strings - store numbers, booleans, and null natively.
+3. All jf.store / jf.userStore / jf.kv values are strings - String() before set, parse after get. jf.db and jf.sharedDb values are NOT restricted to strings - store numbers, booleans, and null natively.
 4. jf.jellyfin.* returns CLR-wrapped objects - they do NOT count against the 256 MB Jint memory budget.
 5. Event handlers must be void - do not return from jf.jellyfin.on() callbacks.
 6. Clean up in jf.onStop: cancelAll(), offAll(), jf.jellyfin.off() per event name, webhooks.unregister() per hook.
@@ -1271,7 +1413,11 @@ mods.json entry:
 25. jf.fs and jf.os are unsandboxed and run with the full privileges of the Jellyfin process. Never build command strings or file paths from untrusted input (req.body, req.query, webhook payloads, etc.).
 26. jf.os.exec goes through the system shell (`cmd.exe /c` on Windows, `/bin/sh -c` elsewhere) — shell metacharacters in the command string are interpreted.
 27. The 256 MB Jint memory budget is cumulative allocations over the engine's lifetime, not live heap. It resets on hot-reload and on Jellyfin restart; GC does not reclaim against it.
-28. jf.db table and column names must match [A-Za-z_][A-Za-z0-9_]* — letters, digits, underscores only; must not start with a digit.
+28. jf.db and jf.sharedDb table and column names must match [A-Za-z_][A-Za-z0-9_]* — letters, digits, underscores only; must not start with a digit.
 29. jf.db raw SQL (exec/run/queryRaw) must only reference tables belonging to this mod (prefixed with {modId}__). Cross-mod table references and ATTACH/DETACH are rejected. Use the table helpers instead — they apply the prefix automatically.
-30. Never build jf.db raw SQL strings from untrusted input. Use parameterised queries (? positional or @name named) or the table helpers.
+30. Never build jf.db or jf.sharedDb raw SQL strings from untrusted input. Use parameterised queries (? positional or @name named) or the table helpers.
 31. jf.db.transaction() uses BEGIN IMMEDIATE — write lock is acquired up front. Do not nest transactions.
+32. jf.bus.off(subId) takes the subscription ID returned by jf.bus.on() — not an event name. jf.jellyfin.off(eventName) takes an event name string. They are not interchangeable.
+33. jf.sharedDb tables have NO automatic prefix — all mods with "db.shared" permission share the same table namespace. Use globally unique table names to avoid collisions.
+34. jf.cache.set(key, value, ttlMs, true) persists the entry through jf.store. Requires "store" permission. Without it, the persist flag is silently ignored and the entry remains in-memory only.
+35. jf.jellyfin.on() requires "jellyfin.read" permission. Attempting to register an event handler without it will throw at runtime.

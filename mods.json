@@ -1229,8 +1229,8 @@
     "id": "youtube-style-double-tap",
     "name": "YouTube-style Double-Tap Skip",
     "author": "CassisCloud",
-    "description": "Skip video playback by double-tapping the left or right side of the screen.",
-    "version": "1.0.2",
+    "description": "Adds YouTube-style touch gestures for double-tap skip, long-press speed, and vertical swipe controls.",
+    "version": "1.0.3",
     "jellyfin": "10.10+",
     "tags": [
       "player",
@@ -1247,6 +1247,24 @@
     "preconnect": [],
     "vars": [
       {
+        "key": "ENABLE_DOUBLE_TAP",
+        "name": "Enable double-tap skip",
+        "description": "Enable skipping by double-tapping the left or right side of the screen.",
+        "type": "boolean",
+        "default": "true",
+        "trueValue": "1",
+        "falseValue": "0"
+      },
+      {
+        "key": "ENABLE_COMBO_TAP",
+        "name": "Enable repeated tap combo",
+        "description": "Continue increasing the displayed skip amount while repeatedly tapping the same side.",
+        "type": "boolean",
+        "default": "true",
+        "trueValue": "1",
+        "falseValue": "0"
+      },
+      {
         "key": "SKIP_SECONDS",
         "name": "Skip seconds",
         "description": "Number of seconds to skip on double-tap.",
@@ -1259,6 +1277,52 @@
         "description": "Maximum time between taps to register as a double-tap.",
         "type": "number",
         "default": "300"
+      },
+      {
+        "key": "COMBO_RESET_DELAY",
+        "name": "Combo reset delay (ms)",
+        "description": "Time after the last repeated tap before the combo UI hides and resets.",
+        "type": "number",
+        "default": "800"
+      },
+      {
+        "key": "ENABLE_LONG_PRESS",
+        "name": "Enable long-press speed",
+        "description": "Temporarily increase playback speed while pressing and holding the video.",
+        "type": "boolean",
+        "default": "true",
+        "trueValue": "1",
+        "falseValue": "0"
+      },
+      {
+        "key": "LONG_PRESS_SPEED",
+        "name": "Long-press playback speed",
+        "description": "Playback speed used while long-pressing.",
+        "type": "number",
+        "default": "2"
+      },
+      {
+        "key": "LONG_PRESS_THRESHOLD",
+        "name": "Long-press threshold (ms)",
+        "description": "Time before a press is treated as long-press.",
+        "type": "number",
+        "default": "500"
+      },
+      {
+        "key": "ENABLE_SWIPE",
+        "name": "Enable swipe controls",
+        "description": "Enable vertical swipe volume and simulated brightness controls.",
+        "type": "boolean",
+        "default": "true",
+        "trueValue": "1",
+        "falseValue": "0"
+      },
+      {
+        "key": "SWIPE_SENSITIVITY",
+        "name": "Swipe sensitivity",
+        "description": "Lower values make volume and brightness swipes more sensitive.",
+        "type": "number",
+        "default": "200"
       }
     ]
   }

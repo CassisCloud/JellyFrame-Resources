@@ -1223,18 +1223,40 @@
     "permissions": [],
     "requires": ["home-app-layout"],
     "preconnect": [],
+    "vars": []
+  },
+  {
+    "id": "youtube-style-double-tap",
+    "name": "YouTube-style Double-Tap Skip",
+    "author": "CassisCloud",
+    "description": "Skip video playback by double-tapping the left or right side of the screen.",
+    "version": "1.0.1",
+    "jellyfin": "10.10+",
+    "tags": [
+      "player",
+      "video",
+      "touch"
+    ],
+    "previewUrl": "https://cdn.jsdelivr.net/gh/CassisCloud/JellyFrame-Resources@main/mods/youtube-style-double-tap.svg",
+    "sourceUrl": "https://github.com/CassisCloud/JellyFrame-Resources",
+    "cssUrl": "",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/CassisCloud/JellyFrame-Resources@main/mods/youtube-style-double-tap-client.js",
+    "serverJs": "",
+    "permissions": [],
+    "requires": [],
+    "preconnect": [],
     "vars": [
       {
         "key": "SKIP_SECONDS",
         "name": "Skip seconds",
-        "description": "Number of seconds to skip on double-tap",
+        "description": "Number of seconds to skip on double-tap.",
         "type": "number",
         "default": "10"
       },
       {
         "key": "TAP_THRESHOLD",
         "name": "Double-tap threshold (ms)",
-        "description": "Maximum time between taps to register as double-tap",
+        "description": "Maximum time between taps to register as a double-tap.",
         "type": "number",
         "default": "300"
       }

@@ -9,11 +9,17 @@
     var touchHandler = null;
     var lastTapTime = 0;
 
+    if (window.__youtubeStyleDoubleTapCleanup) {
+        window.__youtubeStyleDoubleTapCleanup();
+    }
+
     function onLoad() {
+        if (touchHandler) return;
         touchHandler = function(e) {
             handleTouch(e, SKIP_SECONDS, TAP_THRESHOLD);
         };
         document.addEventListener('touchstart', touchHandler, { passive: false });
+        window.__youtubeStyleDoubleTapCleanup = onUnload;
     }
 
     function onUnload() {
@@ -21,17 +27,22 @@
             document.removeEventListener('touchstart', touchHandler);
             touchHandler = null;
         }
+        removeRipple();
+        if (window.__youtubeStyleDoubleTapCleanup === onUnload) {
+            window.__youtubeStyleDoubleTapCleanup = null;
+        }
     }
 
     function handleTouch(e, skipSeconds, tapThreshold) {
         if (window.location.href.indexOf('details') !== -1) return;
+        if (!e || !e.touches || !e.touches.length) return;
 
         var video = document.querySelector('video');
         if (!video) return;
 
         var target = e.target;
-        if (target.closest && target.closest('button, input, a, .osdControls, .sliderContainer, .videoOsdBottom, .skinHeader, .actions')) return;
-        if (video.closest('.backgroundContainer') || video.closest('.backdropContainer')) return;
+        if (target && target.closest && target.closest('button, input, a, .osdControls, .sliderContainer, .videoOsdBottom, .skinHeader, .actions')) return;
+        if (video.closest && (video.closest('.backgroundContainer') || video.closest('.backdropContainer'))) return;
 
         var now = Date.now();
         var timeSinceLastTap = now - lastTapTime;
@@ -54,9 +65,15 @@
         lastTapTime = now;
     }
 
-    function showRipple(direction, skipSeconds) {
+    function removeRipple() {
         var existing = document.getElementById('yt-dtap-ripple');
-        if (existing) existing.remove();
+        if (existing && existing.parentNode) {
+            existing.parentNode.removeChild(existing);
+        }
+    }
+
+    function showRipple(direction, skipSeconds) {
+        removeRipple();
 
         var ripple = document.createElement('div');
         ripple.id = 'yt-dtap-ripple';
@@ -93,6 +110,4 @@
     } else {
         onLoad();
     }
-
-    window.addEventListener('jf-unload', onUnload);
 })();

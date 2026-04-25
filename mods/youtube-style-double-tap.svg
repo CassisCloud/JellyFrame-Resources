@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="288" viewBox="0 0 512 288" role="img" aria-label="YouTube-style double tap skip preview">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#171717"/>
+      <stop offset="1" stop-color="#2b0000"/>
+    </linearGradient>
+    <radialGradient id="pulseLeft" cx="0.18" cy="0.5" r="0.55">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="pulseRight" cx="0.82" cy="0.5" r="0.55">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="288" rx="28" fill="url(#bg)"/>
+  <rect x="16" y="16" width="480" height="256" rx="20" fill="#090909" stroke="#343434" stroke-width="2"/>
+  <rect x="16" y="16" width="170" height="256" rx="20" fill="url(#pulseLeft)"/>
+  <rect x="326" y="16" width="170" height="256" rx="20" fill="url(#pulseRight)"/>
+  <g fill="#ffffff" opacity="0.9" transform="translate(76 104)">
+    <path d="M48 0v80L0 40z"/>
+    <path d="M94 0v80L46 40z" opacity="0.58"/>
+  </g>
+  <g fill="#ffffff" opacity="0.9" transform="translate(342 104)">
+    <path d="M0 0v80l48-40z"/>
+    <path d="M46 0v80l48-40z" opacity="0.58"/>
+  </g>
+  <circle cx="256" cy="144" r="58" fill="#ff0033" opacity="0.95"/>
+  <path d="M239 112v64l52-32z" fill="#ffffff"/>
+  <text x="256" y="238" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#ffffff" text-anchor="middle">DOUBLE TAP SKIP</text>
+</svg>

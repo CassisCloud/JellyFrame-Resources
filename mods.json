@@ -1230,7 +1230,7 @@
     "name": "YouTube-style Double-Tap Skip",
     "author": "CassisCloud",
     "description": "Skip video playback by double-tapping the left or right side of the screen.",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "jellyfin": "10.10+",
     "tags": [
       "player",

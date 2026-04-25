@@ -1223,6 +1223,21 @@
     "permissions": [],
     "requires": ["home-app-layout"],
     "preconnect": [],
-    "vars": []
+    "vars": [
+      {
+        "key": "SKIP_SECONDS",
+        "name": "Skip seconds",
+        "description": "Number of seconds to skip on double-tap",
+        "type": "number",
+        "default": "10"
+      },
+      {
+        "key": "TAP_THRESHOLD",
+        "name": "Double-tap threshold (ms)",
+        "description": "Maximum time between taps to register as double-tap",
+        "type": "number",
+        "default": "300"
+      }
+    ]
   }
 ]

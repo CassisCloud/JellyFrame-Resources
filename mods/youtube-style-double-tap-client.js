@@ -113,6 +113,7 @@
         state.swipeType = null;
         state.isLongPressing = false;
 
+        clearRippleTimer();
         clearLongPressTimer();
 
         if (ENABLE_LONG_PRESS) {
@@ -227,7 +228,10 @@
             return false;
         }
 
-        if (now - state.lastTapTime < TAP_THRESHOLD && state.lastTapDirection === direction) {
+        var elapsed = now - state.lastTapTime;
+        var comboWindow = ENABLE_COMBO_TAP && state.tapCount > 1 ? COMBO_RESET_DELAY : TAP_THRESHOLD;
+
+        if (elapsed < comboWindow && state.lastTapDirection === direction) {
             if (ENABLE_COMBO_TAP) {
                 state.tapCount++;
             } else {
@@ -315,7 +319,7 @@
 
         var svgIcon = isRight
             ? '<svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>'
-            : '<svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor"><path d="M11 18V6l-8.5 6 8.5 6zM13 6v12l8.5-6L13 6z"/></svg>';
+            : '<svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor"><g transform="translate(24 0) scale(-1 1)"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></g></svg>';
 
         ripple.style.cssText =
             'position:fixed;top:0;left:' + (isRight ? 'auto' : '0') + ';right:' + (isRight ? '0' : 'auto') + ';width:40vw;height:100vh;' +

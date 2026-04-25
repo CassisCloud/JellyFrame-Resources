@@ -187,7 +187,7 @@
     "name": "Jellyfin Wallpaper",
     "author": "grimmdev",
     "description": "Live and Static wallpaper for jellyfin, supports vimeo, direct links and also item id from your library to play that movie.",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "jellyfin": "10.9+",
     "tags": [
       "ui",
@@ -197,7 +197,7 @@
     "editorsChoice": true,
     "sourceUrl": "",
     "cssUrl": null,
-    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jellyfin-wallpaper-client.js",
+    "jsUrl": "https://cdn.jsdelivr.net/gh/Jellyfin-PG/JellyFrame-Resources@main/mods/jellyfin-wallpaper-client.min.js",
     "serverJs": null,
     "permissions": [],
     "requires": [],

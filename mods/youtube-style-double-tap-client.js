@@ -18,6 +18,7 @@
     var handlers = null;
     var uiHideTimeout = null;
     var badgeHideTimeout = null;
+    var listenerOptions = { passive: false, capture: true };
 
     var state = {
         active: false,
@@ -50,20 +51,20 @@
             end: onTouchEnd
         };
 
-        document.addEventListener('touchstart', handlers.start, { passive: false });
-        document.addEventListener('touchmove', handlers.move, { passive: false });
-        document.addEventListener('touchend', handlers.end, { passive: false });
-        document.addEventListener('touchcancel', handlers.end, { passive: false });
+        document.addEventListener('touchstart', handlers.start, listenerOptions);
+        document.addEventListener('touchmove', handlers.move, listenerOptions);
+        document.addEventListener('touchend', handlers.end, listenerOptions);
+        document.addEventListener('touchcancel', handlers.end, listenerOptions);
 
         window.__youtubeStyleDoubleTapCleanup = onUnload;
     }
 
     function onUnload() {
         if (handlers) {
-            document.removeEventListener('touchstart', handlers.start);
-            document.removeEventListener('touchmove', handlers.move);
-            document.removeEventListener('touchend', handlers.end);
-            document.removeEventListener('touchcancel', handlers.end);
+            document.removeEventListener('touchstart', handlers.start, true);
+            document.removeEventListener('touchmove', handlers.move, true);
+            document.removeEventListener('touchend', handlers.end, true);
+            document.removeEventListener('touchcancel', handlers.end, true);
             handlers = null;
         }
 
@@ -88,11 +89,18 @@
         if (!video) return null;
         if (video.closest && (video.closest('.backgroundContainer') || video.closest('.backdropContainer'))) return null;
 
-        if (e && e.target && e.target.closest && e.target.closest('button, input, a, .osdControls, .sliderContainer, .videoOsdBottom, .skinHeader, .actions')) {
+        if (isBlockedTarget(e)) {
             return null;
         }
 
         return video;
+    }
+
+    function isBlockedTarget(e) {
+        if (!e || !e.target || !e.target.closest) return false;
+
+        // Keep gestures active over Jellyfin's player OSD, but avoid real controls.
+        return !!e.target.closest('button, input, select, textarea, a, .sliderContainer, .skinHeader, .actions, .mdl-slider, .emby-slider, input[type="range"]');
     }
 
     function onTouchStart(e) {

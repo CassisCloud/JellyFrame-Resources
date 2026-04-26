@@ -1230,7 +1230,7 @@
     "name": "YouTube-style Double-Tap Skip",
     "author": "CassisCloud",
     "description": "Adds YouTube-style touch gestures for double-tap skip, long-press speed, and vertical swipe controls.",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "jellyfin": "10.10+",
     "tags": [
       "player",
